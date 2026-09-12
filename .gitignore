@@ -33,6 +33,9 @@ ds-foundry-server/server.pid
 ds-foundry-server/server.log
 *.log
 
+# Repomix output
+repomix-output.*
+
 # IDE
 .idea/
 .vscode/
