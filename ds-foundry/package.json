@@ -1,0 +1,17 @@
+{
+  "name": "ds-foundry",
+  "version": "1.4.0",
+  "description": "Figma plugin that scans any file, labels and organises its layers, and builds a design system (styles, variables, components, icons, token files) from what it finds.",
+  "private": true,
+  "scripts": {
+    "build": "esbuild src/code.ts --bundle --target=es2020 --format=iife --outfile=dist/code.js && node tools/copy-ui.mjs",
+    "watch": "esbuild src/code.ts --bundle --target=es2020 --format=iife --outfile=dist/code.js --watch",
+    "typecheck": "tsc --noEmit",
+    "check": "npm run typecheck && npm run build"
+  },
+  "devDependencies": {
+    "@figma/plugin-typings": "^1.100.0",
+    "esbuild": "^0.23.0",
+    "typescript": "^5.5.4"
+  }
+}

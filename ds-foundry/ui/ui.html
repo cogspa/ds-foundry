@@ -1,0 +1,645 @@
+<!doctype html>
+<meta charset="utf-8" />
+<style>
+  :root {
+    --bg: var(--figma-color-bg, #fff);
+    --bg2: var(--figma-color-bg-secondary, #f5f5f5);
+    --bg3: var(--figma-color-bg-tertiary, #ebebeb);
+    --hover: var(--figma-color-bg-hover, #f0f0f0);
+    --ink: var(--figma-color-text, #1e1e1e);
+    --ink2: var(--figma-color-text-secondary, #6b6b6b);
+    --ink3: var(--figma-color-text-tertiary, #9a9a9a);
+    --line: var(--figma-color-border, #e6e6e6);
+    --brand: var(--figma-color-bg-brand, #0d99ff);
+    --brand-ink: var(--figma-color-text-onbrand, #fff);
+    --danger: var(--figma-color-text-danger, #f24822);
+    /* token-class hues (the one place colour is spent) */
+    --k-colour: #d84a3c; --k-type: #3b5bdb; --k-space: #2b9a8e; --k-radius: #d69e2e;
+    --k-effect: #7048e8; --k-elem: #2f9e44; --k-icon: #868e96;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; }
+  body {
+    font: 11px/1.45 Inter, -apple-system, "Segoe UI", system-ui, sans-serif;
+    color: var(--ink); background: var(--bg);
+    font-variant-numeric: tabular-nums; -webkit-font-smoothing: antialiased;
+    display: flex; flex-direction: column;
+  }
+  button, input, select { font: inherit; color: inherit; }
+  button { cursor: pointer; }
+  button:focus-visible, input:focus-visible, .seg label:focus-within { outline: 2px solid var(--brand); outline-offset: 1px; }
+
+  header { display: flex; align-items: center; gap: 8px; padding: 12px 16px 10px; border-bottom: 1px solid var(--line); }
+  header h1 { font-size: 13px; font-weight: 600; margin: 0; letter-spacing: -0.01em; }
+  header .ver { color: var(--ink3); }
+  header .grow { flex: 1; }
+
+  .row { display: flex; align-items: center; gap: 8px; }
+  .seg { display: inline-flex; background: var(--bg2); border-radius: 6px; padding: 2px; }
+  .seg label { padding: 4px 10px; border-radius: 4px; color: var(--ink2); cursor: pointer; user-select: none; }
+  .seg input { position: absolute; opacity: 0; width: 0; height: 0; }
+  .seg input:checked + span { color: var(--ink); }
+  .seg label:has(input:checked) { background: var(--bg); box-shadow: 0 1px 2px rgba(0,0,0,.12); }
+
+  .btn { border: 1px solid var(--line); background: var(--bg); border-radius: 6px; padding: 6px 12px; font-weight: 500; }
+  .btn:hover { background: var(--hover); }
+  .btn.primary { background: var(--brand); color: var(--brand-ink); border-color: transparent; }
+  .btn.primary:hover { filter: brightness(1.05); }
+  .btn.primary:disabled, .btn:disabled { opacity: .45; cursor: default; filter: none; }
+  .btn.quiet { border-color: transparent; color: var(--ink2); }
+  .btn.small { padding: 4px 8px; font-weight: 400; }
+
+  main { flex: 1; overflow: auto; }
+  section { padding: 14px 16px; border-bottom: 1px solid var(--line); }
+  section h2 { font-size: 11px; font-weight: 600; margin: 0 0 10px; }
+  section h2 small { color: var(--ink3); font-weight: 400; margin-left: 6px; }
+  .hint { color: var(--ink2); margin: 0; }
+  .empty { padding: 28px 16px; color: var(--ink2); }
+  .empty p { margin: 0 0 6px; }
+
+  /* ledger */
+  .ledger { display: flex; height: 10px; border-radius: 5px; overflow: hidden; background: var(--bg3); margin: 4px 0 10px; }
+  .ledger i { display: block; height: 100%; transition: width .5s cubic-bezier(.2,.8,.2,1); min-width: 0; }
+  .legend { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px 10px; }
+  .legend div { display: flex; align-items: baseline; gap: 6px; color: var(--ink2); }
+  .legend b { font-weight: 600; color: var(--ink); font-size: 13px; }
+  .legend em { font-style: normal; width: 8px; height: 8px; border-radius: 2px; align-self: center; flex: none; }
+
+  .tabs { display: flex; gap: 2px; margin: 12px 0 8px; border-bottom: 1px solid var(--line); }
+  .tabs button { border: 0; background: none; padding: 6px 8px; color: var(--ink2); border-bottom: 2px solid transparent; margin-bottom: -1px; }
+  .tabs button[aria-selected="true"] { color: var(--ink); border-bottom-color: var(--ink); }
+  .list { max-height: 210px; overflow: auto; margin: 0 -16px; padding: 0 16px; }
+  .item { display: grid; grid-template-columns: 22px 1fr auto; gap: 8px; align-items: center; padding: 4px 0; border-bottom: 1px solid var(--line); }
+  .item:last-child { border-bottom: 0; }
+  .item .sw { width: 22px; height: 22px; border-radius: 5px; border: 1px solid rgba(0,0,0,.08); background-image: linear-gradient(45deg,#ddd 25%,transparent 25%,transparent 75%,#ddd 75%),linear-gradient(45deg,#ddd 25%,transparent 25%,transparent 75%,#ddd 75%); background-size: 8px 8px; background-position: 0 0, 4px 4px; position: relative; overflow: hidden; }
+  .item .sw i { position: absolute; inset: 0; }
+  .item .name { font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .item .sub { color: var(--ink2); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .item .n { color: var(--ink3); }
+  .item.cat .sw { border: 0; background: var(--bg2); display: grid; place-items: center; color: var(--ink2); font-size: 10px; }
+  .chips { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 4px; }
+  .chip { background: var(--bg2); border-radius: 4px; padding: 1px 6px; color: var(--ink2); max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+  /* options */
+  .opts { display: grid; grid-template-columns: 1fr 1fr; gap: 6px 14px; margin: 8px 0 12px; }
+  .opts label { display: flex; align-items: center; gap: 7px; padding: 3px 0; cursor: pointer; }
+  .opts label.sub { margin-left: 20px; color: var(--ink2); }
+  .opts input[type=checkbox] { accent-color: var(--brand); margin: 0; }
+  .field { display: flex; align-items: center; gap: 8px; }
+  .field input[type=text] { flex: 1; border: 1px solid var(--line); border-radius: 6px; padding: 5px 8px; background: var(--bg); min-width: 0; }
+  .field label { color: var(--ink2); width: 52px; }
+
+  .progress { height: 4px; border-radius: 2px; background: var(--bg3); overflow: hidden; margin-top: 10px; }
+  .progress i { display: block; height: 100%; width: 0; background: var(--brand); transition: width .25s ease; }
+  .status { color: var(--ink2); margin-top: 6px; min-height: 16px; }
+  .status.err { color: var(--danger); }
+
+  .stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-bottom: 10px; }
+  .stats div { background: var(--bg2); border-radius: 6px; padding: 8px 10px; }
+  .stats b { display: block; font-size: 15px; font-weight: 600; }
+  .stats span { color: var(--ink2); }
+  .notes { margin: 0 0 10px; padding-left: 16px; color: var(--ink2); }
+  .files { display: flex; flex-wrap: wrap; gap: 6px; }
+
+  /* AI naming */
+  .ai-head { display: flex; align-items: center; gap: 8px; }
+  .ai-head .field { flex: 1; }
+  .field input[type=password], .field select { border: 1px solid var(--line); border-radius: 6px; padding: 5px 8px; background: var(--bg); min-width: 0; }
+  .field input[type=password] { flex: 1; font-family: ui-monospace, Menlo, monospace; font-size: 10px; }
+  .ai-rows { max-height: 260px; overflow: auto; margin: 8px -16px 0; padding: 0 16px; }
+  .ai-row { display: grid; grid-template-columns: 18px 44px 1fr; gap: 8px; align-items: center; padding: 5px 0; border-bottom: 1px solid var(--line); }
+  .ai-row img { width: 44px; height: 44px; object-fit: contain; border-radius: 5px; background: #fff; border: 1px solid var(--line); }
+  .ai-row .old { color: var(--ink3); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .ai-row .old b { font-weight: 500; color: var(--ink2); }
+  .ai-row input[type=text] { width: 100%; border: 1px solid transparent; border-radius: 4px; padding: 2px 4px; background: transparent; font-weight: 500; }
+  .ai-row input[type=text]:hover, .ai-row input[type=text]:focus { border-color: var(--line); background: var(--bg); }
+  .ai-row .what { color: var(--ink2); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .ai-foot { display: flex; gap: 8px; align-items: center; margin-top: 10px; }
+  .ai-foot .grow { flex: 1; color: var(--ink2); }
+
+  footer { display: flex; gap: 8px; align-items: center; padding: 10px 16px; border-top: 1px solid var(--line); background: var(--bg); }
+  footer .grow { flex: 1; }
+  @media (prefers-reduced-motion: reduce) { .ledger i, .progress i { transition: none; } }
+</style>
+
+<header>
+  <h1>DS Foundry</h1><span class="ver">1.4.0</span>
+  <span class="grow"></span>
+  <div class="seg" role="radiogroup" aria-label="Scope">
+    <label><input type="radio" name="scope" value="selection" /><span>Selection</span></label>
+    <label><input type="radio" name="scope" value="page" checked /><span>Page</span></label>
+    <label><input type="radio" name="scope" value="document" /><span>Document</span></label>
+  </div>
+  <button class="btn primary" id="scan">Scan</button>
+</header>
+
+<main>
+  <div class="empty" id="empty">
+    <p>Scan a page, a selection, or the whole file.</p>
+    <p>DS Foundry reads every layer, collects colours, type, spacing, radii and effects, recognises buttons, inputs, cards, nav bars, icons and more, then builds styles, variables, component sets and documented foundation pages from what it finds.</p>
+    <p>Nothing in the file changes until you press Build.</p>
+  </div>
+
+  <section id="inventory" hidden>
+    <h2>Inventory <small id="invMeta"></small></h2>
+    <div class="ledger" id="ledger"></div>
+    <div class="legend" id="legend"></div>
+    <div class="tabs" role="tablist" id="tabs">
+      <button role="tab" data-tab="colors" aria-selected="true">Colours</button>
+      <button role="tab" data-tab="types">Type</button>
+      <button role="tab" data-tab="scale">Scale</button>
+      <button role="tab" data-tab="elements">Elements</button>
+      <button role="tab" data-tab="components">Components</button>
+    </div>
+    <div class="list" id="list"></div>
+  </section>
+
+  <section id="aiSec" hidden>
+    <h2>AI naming <small>names layers by what they look like</small></h2>
+    <div class="ai-head">
+      <div class="field"><select id="provider">
+        <option value="anthropic">Claude</option>
+        <option value="gemini">Gemini</option>
+        <option value="proxy">Proxy (LangGraph server)</option>
+      </select></div>
+      <div class="field"><input type="password" id="apiKey" placeholder="Anthropic API key (sk-ant-…)" autocomplete="off" spellcheck="false" /></div>
+      <div class="field"><select id="model"></select></div>
+    </div>
+    <div class="field" id="customModelRow" hidden style="margin-top:6px"><label for="customModel">Model ID</label><input type="text" id="customModel" placeholder="model id — in proxy mode use provider:model, e.g. gemini:gemini-3.8-flash" spellcheck="false" /></div>
+    <div class="row" id="proxyRow" hidden style="margin-top:6px;gap:10px">
+      <div class="field" style="flex:1"><label for="proxyUrl">Server</label><input type="text" id="proxyUrl" value="http://localhost:8000" spellcheck="false" /></div>
+      <div class="field"><label for="project" style="width:auto">Project</label><input type="text" id="project" value="default" style="width:90px" spellcheck="false" /></div>
+      <label style="display:flex;align-items:center;gap:6px;color:var(--ink2)"><input type="checkbox" id="p_critic" checked /> Critic</label>
+      <label style="display:flex;align-items:center;gap:6px;color:var(--ink2)"><input type="checkbox" id="p_learn" checked /> Learn</label>
+    </div>
+    <div class="opts">
+      <label><input type="checkbox" id="t_icons" checked /> Icons and symbols</label>
+      <label><input type="checkbox" id="t_art" checked /> Logos, characters, illustrations</label>
+      <label><input type="checkbox" id="t_images" checked /> Images and avatars</label>
+      <label><input type="checkbox" id="t_screens" checked /> Screens, sections, nav</label>
+      <label><input type="checkbox" id="t_cards" checked /> Cards and list items</label>
+      <label><input type="checkbox" id="t_components" checked /> Components</label>
+      <label><input type="checkbox" id="t_text" /> Taglines and copy</label>
+      <label><input type="checkbox" id="t_shapes" /> Plain shapes (already get geometry names)</label>
+      <label><input type="checkbox" id="t_prefix" checked /> Add prefix and category path</label>
+      <label class="field" style="gap:6px"><span style="color:var(--ink2)">Max items</span><input type="text" id="t_max" value="300" style="width:52px;border:1px solid var(--line);border-radius:6px;padding:3px 6px;background:var(--bg)" /></label>
+    </div>
+    <p class="hint" id="aiHint">Identical layers are named once and renamed together. Items the model can't name honestly are flagged for you instead of guessed; confidently named characters and logos are used as references to recognise their other views. Keys are stored only on this device and sent straight to the provider you pick. Proxy mode sends batches to your own DS Foundry server, which adds a critic pass, a shared glossary and a cache. Thumbnails are small (≤ 384 px) to keep cost low.</p>
+    <div class="ai-foot">
+      <button class="btn" id="aiSuggest">Suggest names</button>
+      <span class="grow" id="aiStatus"></span>
+      <button class="btn small" id="aiAll" hidden>Select all</button>
+      <button class="btn primary" id="aiApply" hidden>Apply names</button>
+    </div>
+    <div class="ai-rows" id="aiRows"></div>
+  </section>
+
+  <section id="buildSec" hidden>
+    <h2>Build</h2>
+    <div class="row" style="gap:14px">
+      <div class="field" style="flex:1"><label for="prefix">Prefix</label><input type="text" id="prefix" value="ds/" spellcheck="false" /></div>
+      <div class="field"><label style="width:auto">Grid</label>
+        <div class="seg" role="radiogroup" aria-label="Base grid">
+          <label><input type="radio" name="grid" value="4" checked /><span>4</span></label>
+          <label><input type="radio" name="grid" value="8" /><span>8</span></label>
+        </div>
+      </div>
+    </div>
+    <div class="opts">
+      <label><input type="checkbox" id="o_labels" checked /> Label layers</label>
+      <label><input type="checkbox" id="o_styles" checked /> Colour, text and effect styles</label>
+      <label class="sub"><input type="checkbox" id="o_rename" checked /> Rename (off = tag only)</label>
+      <label><input type="checkbox" id="o_variables" checked /> Variables collection</label>
+      <label class="sub"><input type="checkbox" id="o_labelText" /> Include text layers</label>
+      <label><input type="checkbox" id="o_foundations" checked /> Foundations page</label>
+      <label><input type="checkbox" id="o_tidy" /> Arrange screens by width</label>
+      <label><input type="checkbox" id="o_components" checked /> Components page</label>
+      <label></label>
+      <label><input type="checkbox" id="o_icons" checked /> Icons page</label>
+      <label><input type="checkbox" id="o_assets" checked /> Assets contact sheet</label>
+    </div>
+    <p class="hint">Layer names are kept, so labels can be reverted. Re-running a build replaces the pages it generated and updates styles in place.</p>
+  </section>
+
+  <section id="results" hidden>
+    <h2>Built</h2>
+    <div class="stats" id="stats"></div>
+    <ul class="notes" id="notes"></ul>
+    <h2>Token files</h2>
+    <div class="files" id="files"></div>
+  </section>
+</main>
+
+<footer>
+  <div style="flex:1">
+    <div class="progress" id="progress" hidden><i></i></div>
+    <div class="status" id="status"></div>
+  </div>
+  <button class="btn quiet" id="revert" hidden>Revert labels</button>
+  <button class="btn quiet" id="cancel" hidden>Stop</button>
+  <button class="btn primary" id="build" disabled>Build design system</button>
+</footer>
+
+<script>
+  const $ = (s) => document.querySelector(s);
+  const send = (m) => parent.postMessage({ pluginMessage: m }, '*');
+  let summary = null, built = null, tab = 'colors';
+
+  const scope = () => document.querySelector('input[name=scope]:checked').value;
+  const grid = () => +document.querySelector('input[name=grid]:checked').value;
+  const opts = () => ({
+    prefix: normPrefix($('#prefix').value), baseGrid: grid(),
+    labels: $('#o_labels').checked, rename: $('#o_rename').checked, labelText: $('#o_labelText').checked,
+    styles: $('#o_styles').checked, variables: $('#o_variables').checked,
+    foundations: $('#o_foundations').checked, components: $('#o_components').checked, icons: $('#o_icons').checked,
+    assets: $('#o_assets').checked, tidy: $('#o_tidy').checked,
+  });
+  function normPrefix(p) { p = (p || '').trim(); if (!p) return ''; return p.endsWith('/') ? p : p + '/'; }
+
+  // ---------- state ----------
+  function setBusy(on, label) {
+    $('#scan').disabled = on; $('#build').disabled = on || !summary; $('#revert').disabled = on;
+    $('#cancel').hidden = !on;
+    $('#progress').hidden = !on;
+    if (!on) { $('#progress i').style.width = '0%'; }
+    if (label !== undefined) status(label);
+  }
+  function status(msg, err) { const s = $('#status'); s.textContent = msg || ''; s.classList.toggle('err', !!err); }
+
+  $('#scan').onclick = () => { built = null; $('#results').hidden = true; setBusy(true, 'Scanning…'); send({ type: 'scan', scope: scope(), baseGrid: grid(), prefix: normPrefix($('#prefix').value) }); };
+  $('#build').onclick = () => { setBusy(true, 'Building…'); send({ type: 'build', options: opts() }); };
+  $('#cancel').onclick = () => { send({ type: 'cancel' }); status('Stopping…'); };
+  $('#revert').onclick = () => { setBusy(true, 'Restoring layer names…'); send({ type: 'revert' }); };
+  $('#prefix').addEventListener('change', () => { if (summary) send({ type: 'relabel', prefix: normPrefix($('#prefix').value) }); });
+  $('#o_labels').addEventListener('change', (e) => { $('#o_rename').disabled = $('#o_labelText').disabled = !e.target.checked; });
+  $('#tabs').addEventListener('click', (e) => { const b = e.target.closest('[data-tab]'); if (!b) return; tab = b.dataset.tab; renderTabs(); renderList(); });
+  $('#list').addEventListener('click', (e) => { const b = e.target.closest('[data-select]'); if (b) send({ type: 'select', category: b.dataset.select }); });
+
+  window.onmessage = (e) => {
+    const m = e.data.pluginMessage; if (!m) return;
+    if (m.type === 'progress') { $('#progress').hidden = false; $('#progress i').style.width = m.pct + '%'; status(m.msg); }
+    if (m.type === 'scanned') { summary = m.summary; setBusy(false, `Scanned ${summary.nodeCount.toLocaleString()} layers on ${summary.pages.length} page${summary.pages.length === 1 ? '' : 's'}.`); renderInventory(); }
+    if (m.type === 'built') { built = m.result; setBusy(false, 'Design system built.'); renderResults(); }
+    if (m.type === 'reverted') { setBusy(false, `Restored ${m.count} layer names.`); }
+    if (m.type === 'error') { setBusy(false); aiBusy = false; aiStatus(m.msg, true); status(m.msg, true); }
+    if (m.type === 'ai_keys') { aiKeys = m.keys || {}; $('#apiKey').value = aiKeys[provider()] || ''; }
+    if (m.type === 'ai_items') { aiReceive(m); }
+    if (m.type === 'ai_applied') { setBusy(false, `Renamed ${m.count} layers.`); aiStatus(`Renamed ${m.count} layers. Revert labels restores the originals.`); $('#aiApply').hidden = true; $('#aiAll').hidden = true; $('#aiRows').innerHTML = ''; }
+  };
+  send({ type: 'ai_key_get' });
+
+  // ---------- inventory ----------
+  const K = [
+    ['colors', 'colours', 'var(--k-colour)'], ['types', 'text styles', 'var(--k-type)'], ['spacing', 'spacing', 'var(--k-space)'],
+    ['radii', 'radii', 'var(--k-radius)'], ['effects', 'effects', 'var(--k-effect)'], ['elements', 'elements', 'var(--k-elem)'], ['icons', 'icons', 'var(--k-icon)'],
+  ];
+  function counts() {
+    const el = Object.values(summary.elements).reduce((n, c) => n + c.count, 0);
+    return { colors: summary.colors.length, types: summary.types.length, spacing: summary.spacing.length, radii: summary.radii.length, effects: summary.effects.length, elements: el, icons: summary.icons.count };
+  }
+  function renderInventory() {
+    $('#empty').hidden = true; $('#inventory').hidden = false; $('#aiSec').hidden = false; $('#buildSec').hidden = false; $('#revert').hidden = false;
+    aiReset();
+    $('#invMeta').textContent = summary.pages.length === 1 ? summary.pages[0] : `${summary.pages.length} pages`;
+    const c = counts();
+    // ledger: log-scaled so a thousand elements doesn't flatten the token classes
+    const w = K.map(([k]) => Math.log2(1 + c[k]));
+    const tot = w.reduce((a, b) => a + b, 0) || 1;
+    $('#ledger').innerHTML = K.map(([k, , col], i) => `<i style="width:0;background:${col}" data-w="${(w[i] / tot * 100).toFixed(2)}"></i>`).join('');
+    requestAnimationFrame(() => document.querySelectorAll('#ledger i').forEach((el) => (el.style.width = el.dataset.w + '%')));
+    $('#legend').innerHTML = K.map(([k, label, col]) => `<div><em style="background:${col}"></em><b>${c[k]}</b>${label}</div>`).join('') +
+      `<div><b>${summary.components.length}</b>components in use</div>` +
+      (summary.missingFonts.length ? `<div style="grid-column:span 3;color:var(--danger)">Missing fonts: ${esc(summary.missingFonts.join(', '))}</div>` : '');
+    renderTabs(); renderList();
+  }
+  function renderTabs() { document.querySelectorAll('#tabs [data-tab]').forEach((b) => b.setAttribute('aria-selected', b.dataset.tab === tab)); }
+  function esc(s) { return String(s).replace(/[&<>"]/g, (ch) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[ch])); }
+  function renderList() {
+    const L = $('#list'); let h = '';
+    if (tab === 'colors') {
+      h = summary.colors.map((c) => `<div class="item"><span class="sw"><i style="background:${c.hex}"></i></span><div><div class="name">${esc(c.name)}</div><div class="sub">${esc(c.hex)}</div></div><span class="n">${c.count}×</span></div>`).join('');
+    } else if (tab === 'types') {
+      h = summary.types.map((t) => `<div class="item cat"><span class="sw">Aa</span><div><div class="name">${esc(t.name)}</div><div class="sub">${esc(t.family)} ${esc(t.style)} · ${t.size}px</div></div><span class="n">${t.count}×</span></div>`).join('');
+    } else if (tab === 'scale') {
+      h = summary.spacing.map((s) => `<div class="item cat"><span class="sw">▭</span><div><div class="name">${esc(s.name)}</div><div class="sub">${s.value}px gap or padding</div></div><span class="n">${s.count}×</span></div>`).join('')
+        + summary.radii.map((r) => `<div class="item cat"><span class="sw">◜</span><div><div class="name">${esc(r.name)}</div><div class="sub">${r.value >= 999 ? 'full' : r.value + 'px'}</div></div><span class="n">${r.count}×</span></div>`).join('')
+        + summary.effects.map((e) => `<div class="item cat"><span class="sw">◐</span><div><div class="name">${esc(e.name)}</div><div class="sub">${esc(e.css)}</div></div><span class="n">${e.count}×</span></div>`).join('');
+    } else if (tab === 'elements') {
+      const cats = Object.entries(summary.elements).sort((a, b) => b[1].count - a[1].count);
+      h = cats.map(([k, v]) => `<div class="item cat" style="grid-template-columns:1fr auto"><div><div class="name">${esc(k)}</div><div class="chips">${v.samples.map((s) => `<span class="chip" title="${esc(s)}">${esc(s)}</span>`).join('')}</div></div><span class="n">${v.count}</span></div>`).join('');
+      if (summary.icons.count) h += `<div class="item cat" style="grid-template-columns:1fr auto"><div><div class="name">icon</div><div class="chips">${summary.icons.samples.map((s) => `<span class="chip" title="${esc(s)}">${esc(s)}</span>`).join('')}</div></div><span class="n">${summary.icons.count}</span></div>`;
+      if (summary.shapes.count) h += `<div class="item cat" style="grid-template-columns:1fr auto"><div><div class="name">shape <span style="font-weight:400;color:var(--ink3)">— every vector gets a geometry name</span></div><div class="chips">${summary.shapes.samples.map((s) => `<span class="chip" title="${esc(s)}">${esc(s)}</span>`).join('')}</div></div><span class="n">${summary.shapes.count}</span></div>`;
+      h += `<div class="item cat" style="grid-template-columns:1fr auto auto"><div><div class="name">debris <span style="font-weight:400;color:var(--ink3)">— specks, empty paths, ghosts</span></div></div><span class="n">${summary.debris}</span><button class="btn small" data-select="debris" ${summary.debris ? '' : 'disabled'}>Select on page</button></div>`;
+    } else if (tab === 'components') {
+      h = summary.components.length ? summary.components.map((c) => `<div class="item cat"><span class="sw">◈</span><div><div class="name">${esc(c.name)}</div><div class="sub">${c.remote ? 'library component' : 'local component'}</div></div><span class="n">${c.count}×</span></div>`).join('') : `<p class="hint">No instances of existing components in this scope.</p>`;
+    }
+    L.innerHTML = h || `<p class="hint">Nothing in this category.</p>`;
+  }
+
+  // ---------- results ----------
+  function renderResults() {
+    $('#results').hidden = false;
+    const r = built;
+    $('#stats').innerHTML = [
+      [r.paintStyles + r.textStyles + r.effectStyles, 'styles'], [r.variables, 'variables'], [r.labeled, 'layers labelled'],
+      [r.componentSets, 'component sets'], [r.components, 'variants'], [r.icons, 'icon components'],
+    ].map(([n, l]) => `<div><b>${n}</b><span>${l}</span></div>`).join('');
+    $('#notes').innerHTML = (r.pages.length ? [`Pages: ${r.pages.join(', ')}`] : []).concat(r.notes).map((n) => `<li>${esc(n)}</li>`).join('');
+    const names = Object.keys(r.files);
+    $('#files').innerHTML = names.map((n) => `<button class="btn small" data-file="${esc(n)}">${esc(n)}</button>`).join('') + `<button class="btn small primary" data-zip="1">All as .zip</button>`;
+    $('#files').onclick = (e) => {
+      const b = e.target.closest('button'); if (!b) return;
+      if (b.dataset.zip) download('design-tokens.zip', zip(r.files), 'application/zip');
+      else download(b.dataset.file, r.files[b.dataset.file], 'text/plain');
+    };
+    $('#results').scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
+  function download(name, data, mime) {
+    const blob = data instanceof Blob ? data : new Blob([data], { type: mime });
+    const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = name; document.body.appendChild(a); a.click();
+    setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 1000);
+  }
+
+  // ---------- AI naming ----------
+  const PROVIDERS = {
+    anthropic: {
+      label: 'Claude', keyHint: 'Anthropic API key (sk-ant-…)',
+      models: [['claude-sonnet-5', 'Sonnet 5'], ['claude-haiku-4-5', 'Haiku 4.5 (cheapest)'], ['claude-opus-5', 'Opus 5']],
+    },
+    gemini: {
+      label: 'Gemini', keyHint: 'Gemini API key (AIza…)',
+      models: [['gemini-3.7-flash', 'Gemini 3.7 Flash'], ['gemini-3.8-flash', 'Gemini 3.8 Flash'], ['gemini-3.5-flash-lite', 'Gemini 3.5 Flash-Lite (cheapest)'], ['gemini-3.1-pro-preview', 'Gemini 3.1 Pro (preview)']],
+    },
+    proxy: {
+      label: 'Proxy', keyHint: 'Upstream API key (optional if the server has one)',
+      // value = "<upstream provider>:<model or blank for server default>"
+      models: [['anthropic:', 'Claude · server default'], ['anthropic:claude-sonnet-5', 'Claude · Sonnet 5'], ['anthropic:claude-haiku-4-5', 'Claude · Haiku 4.5'],
+               ['gemini:', 'Gemini · server default'], ['gemini:gemini-3.7-flash', 'Gemini · 3.7 Flash'], ['gemini:gemini-3.5-flash-lite', 'Gemini · 3.5 Flash-Lite'],
+               ['ollama:', 'Ollama · server default (local)']],
+    },
+  };
+  const CLAUDE_URL = 'https://api.anthropic.com/v1/messages';
+  const GEMINI_URL = (model) => `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent`;
+  const BATCH = 10, CONCURRENCY = 3, MAX_EDGE = 384;
+  let aiKeys = {};
+  const provider = () => $('#provider').value;
+  const proxyUrl = () => $('#proxyUrl').value.trim().replace(/\/+$/, '');
+  const modelId = () => ($('#model').value === '__custom' ? (provider() === 'proxy' ? '__custom' : $('#customModel').value.trim()) : $('#model').value);
+  function renderModels() {
+    const p = PROVIDERS[provider()];
+    $('#model').innerHTML = p.models.map(([id, label]) => `<option value="${id}">${label}</option>`).join('') + `<option value="__custom">Custom model ID…</option>`;
+    $('#apiKey').placeholder = p.keyHint;
+    $('#apiKey').value = aiKeys[provider()] || '';
+    $('#customModelRow').hidden = true;
+    $('#proxyRow').hidden = provider() !== 'proxy';
+    if (provider() === 'proxy' && aiKeys.proxyUrl) $('#proxyUrl').value = aiKeys.proxyUrl;
+  }
+  $('#proxyUrl').addEventListener('change', () => { aiKeys.proxyUrl = proxyUrl(); send({ type: 'ai_key_set', provider: 'proxyUrl', key: aiKeys.proxyUrl }); });
+  $('#provider').addEventListener('change', renderModels);
+  $('#model').addEventListener('change', () => { $('#customModelRow').hidden = $('#model').value !== '__custom'; if (!$('#customModelRow').hidden) $('#customModel').focus(); });
+  renderModels();
+  let aiItems = [], aiBusy = false, aiExpected = 0, aiDoneStreaming = false;
+  const GENERIC = new Set(['icon', 'image', 'frame', 'group', 'vector', 'rectangle', 'shape', 'component', 'layer', 'screen', 'card', 'element', 'item', 'picture', 'graphic']);
+
+  function aiStatus(msg, err) { const s = $('#aiStatus'); s.textContent = msg || ''; s.style.color = err ? 'var(--danger)' : ''; }
+  function aiReset() { aiItems = []; aiBusy = false; $('#aiRows').innerHTML = ''; $('#aiApply').hidden = true; $('#aiAll').hidden = true; aiStatus(''); }
+  const targets = () => ({ icons: $('#t_icons').checked, art: $('#t_art').checked, images: $('#t_images').checked, screens: $('#t_screens').checked, cards: $('#t_cards').checked, components: $('#t_components').checked, text: $('#t_text').checked, shapes: $('#t_shapes').checked });
+
+  $('#apiKey').addEventListener('change', () => { aiKeys[provider()] = $('#apiKey').value.trim(); send({ type: 'ai_key_set', provider: provider(), key: aiKeys[provider()] }); });
+  $('#aiSuggest').onclick = () => {
+    const key = $('#apiKey').value.trim();
+    if (!key && provider() !== 'proxy') { aiStatus(`Paste a ${PROVIDERS[provider()].label} API key first.`, true); $('#apiKey').focus(); return; }
+    if (!modelId() && provider() !== 'proxy') { aiStatus('Enter a model ID.', true); $('#customModel').focus(); return; }
+    if (provider() === 'proxy' && !/^https?:\/\//.test(proxyUrl())) { aiStatus('Enter the server URL, e.g. http://localhost:8000', true); $('#proxyUrl').focus(); return; }
+    if (aiBusy) return;
+    aiItems = []; aiExpected = 0; aiDoneStreaming = false; aiBusy = true;
+    $('#aiRows').innerHTML = ''; $('#aiApply').hidden = true; $('#aiAll').hidden = true;
+    setBusy(true, 'Exporting thumbnails…'); aiStatus('Exporting thumbnails…');
+    send({ type: 'ai_prepare', targets: targets(), maxItems: Math.max(1, Math.min(2000, +$('#t_max').value || 300)) });
+  };
+  $('#aiAll').onclick = () => { const boxes = [...document.querySelectorAll('#aiRows input[type=checkbox]')]; const all = boxes.every((b) => b.checked); boxes.forEach((b) => (b.checked = !all)); updateApplyCount(); };
+  $('#aiApply').onclick = () => {
+    const renames = [];
+    document.querySelectorAll('#aiRows .ai-row').forEach((row) => {
+      if (!row.querySelector('input[type=checkbox]').checked) return;
+      const it = aiItems[+row.dataset.i]; const name = row.querySelector('input[type=text]').value.trim();
+      if (name) renames.push({ ids: it.ids, name, category: it.category, kind: it.kind && it.kind !== 'abstract' ? it.kind : it.category });
+    });
+    if (!renames.length) return;
+    setBusy(true, 'Renaming…'); aiStatus('Renaming…');
+    send({ type: 'ai_apply', renames, prefix: normPrefix($('#prefix').value), usePrefix: $('#t_prefix').checked });
+  };
+  $('#aiRows').addEventListener('change', (e) => { if (e.target.type === 'checkbox') updateApplyCount(); });
+  $('#aiRows').addEventListener('input', (e) => { if (e.target.type === 'text') { const cb = e.target.closest('.ai-row').querySelector('input[type=checkbox]'); cb.checked = !!e.target.value.trim(); updateApplyCount(); } });
+  function updateApplyCount() { const n = document.querySelectorAll('#aiRows input[type=checkbox]:checked').length; $('#aiApply').textContent = `Apply ${n} name${n === 1 ? '' : 's'}`; $('#aiApply').disabled = !n; }
+
+  async function aiReceive(m) {
+    for (const it of m.items) {
+      try { it.dataUrl = await toThumb(it.png, it.category === 'icon'); } catch { it.dataUrl = null; }
+      delete it.png;
+      if (it.dataUrl) aiItems.push(it);
+    }
+    aiExpected = m.total;
+    aiStatus(`Exported ${aiItems.length} of ${m.total} thumbnails…`);
+    if (m.done) { aiDoneStreaming = true; setBusy(false); await aiRun(); }
+  }
+
+  // composite on white, cap the long edge, return a PNG data URL
+  async function toThumb(bytes, pad) {
+    const bmp = await createImageBitmap(new Blob([bytes], { type: 'image/png' }));
+    const scale = Math.min(1, MAX_EDGE / Math.max(bmp.width, bmp.height));
+    const p = pad ? 16 : 8;
+    const c = document.createElement('canvas'); c.width = Math.round(bmp.width * scale) + p * 2; c.height = Math.round(bmp.height * scale) + p * 2;
+    const g = c.getContext('2d'); g.fillStyle = '#ffffff'; g.fillRect(0, 0, c.width, c.height);
+    g.drawImage(bmp, p, p, Math.round(bmp.width * scale), Math.round(bmp.height * scale));
+    bmp.close && bmp.close();
+    return c.toDataURL('image/png');
+  }
+
+  const SYSTEM = `You name layers in a Figma design file. You will receive numbered images with a context line for each (category, current layer name, text found inside).
+For every image return a short, specific, lowercase kebab-case name (1-4 words) describing what it visually depicts or, for UI pieces, what it is for.
+Rules:
+- Icons: name the pictogram by its meaning: search, arrow-left, settings, heart-filled, chevron-down, user-circle.
+- Images and avatars: name the subject: mountain-lake-hero, woman-headshot, product-shoe-red.
+- Screens, sections, nav: name the purpose: login, checkout-summary, hero-banner, footer-links, top-nav.
+- Cards and list items: name the content: pricing-plan-pro, order-row, testimonial-quote.
+- Components: name the role and variant hint: primary-button, search-input, avatar-with-status.
+- Plain shapes: describe them: rounded-panel-bg, circle-badge, divider-line.
+- Taglines and copy: name by the message, not the words: welcome-tagline, pricing-intro, footer-legal.
+- Never use generic words alone (icon, image, frame, vector, rectangle, shape, component). Do not include prefixes or slashes. Do not invent brand names you cannot see — but if a wordmark is legible, use it (owting-logo). If text is visible, prefer names that use it.
+Also classify each item with "kind", choosing the best of: icon, symbol, logo, character, illustration, image, avatar, screen, section, nav, card, list-item, button, badge, input, tagline, copy, shape, debris, abstract. The provided category is a guess from geometry — correct it when the picture says otherwise (a "symbol" that is clearly a mascot is a character; a "illustration" that is a wordmark is a logo; a stray speck is debris).
+- A character is a figure with a face, body or pose (mascot, animal, person). An illustration is a scene or object without a face. A logo is a mark, wordmark or lockup that identifies a brand.
+- If a shape is too abstract to name honestly, set "kind": "abstract" and "name": "" — the designer will name it. Do not guess.
+- REFERENCES, when provided, are already-named characters and logos from this project. If an item is another view, crop, pose or partial of a reference (its back, its side, a detail), name it <reference-name>-<view>, e.g. owl-mascot-back, and use the same kind.
+Return ONLY a JSON array, no prose, no code fence: [{"i":0,"name":"search","what":"magnifying glass outline","kind":"icon","confidence":0.95}, ...] with one entry per image, in order. Confidence 0-1.`;
+
+  async function aiRun() {
+    if (!aiItems.length) { aiBusy = false; aiStatus('Nothing to name in the selected categories.'); return; }
+    const key = $('#apiKey').value.trim(), model = modelId();
+    const batches = []; for (let i = 0; i < aiItems.length; i += BATCH) batches.push(aiItems.slice(i, i + BATCH));
+    let done = 0, failed = 0;
+    aiStatus(`Naming ${aiItems.length} items in ${batches.length} calls…`);
+    let cursor = 0;
+    async function worker() {
+      while (cursor < batches.length) {
+        const b = batches[cursor++];
+        try { await aiName(b, key, model); } catch (e) { failed += b.length; b.forEach((it) => (it.error = String(e.message || e))); }
+        done++; aiStatus(`Named batch ${done}/${batches.length}${failed ? ` · ${failed} failed` : ''}`);
+      }
+    }
+    await Promise.all(Array.from({ length: Math.min(CONCURRENCY, batches.length) }, worker));
+    try { await reconcileCharacters(key, model); } catch {}
+    dedupeNames();
+    // rows that need a human first, then low confidence, then the rest
+    aiItems.sort((a, b) => (b.needsName ? 1 : 0) - (a.needsName ? 1 : 0) || (a.confidence || 0) - (b.confidence || 0));
+    renderAi();
+    aiBusy = false;
+    const ok = aiItems.filter((it) => it.suggested).length, todo = aiItems.filter((it) => it.needsName).length;
+    aiStatus(ok ? `${ok} names suggested${todo ? ` · ${todo} need your name (listed first)` : ''}. Edit any, untick what to skip, then apply.` : `No names came back. ${aiItems[0] && aiItems[0].error ? aiItems[0].error : ''}`, !ok);
+  }
+
+  function contextLine(it, i) { return `#${i} · category: ${it.category} · current name: "${it.name}"${it.desc ? ` · geometry: ${it.desc}` : ''}${it.text ? ` · text: "${it.text.slice(0, 60)}"` : ''} · ${it.w}×${it.h}px`; }
+  const closing = (n) => `Name and classify all ${n} images (#0 to #${n - 1}). JSON array only.`;
+  // provider-neutral message: [{text}|{image}] — references (already-named characters/logos) go first
+  function segmentsFor(batch, refs) {
+    const seg = [];
+    if (refs && refs.length) {
+      seg.push({ text: 'REFERENCES — characters and logos already named in this project. Do not name these; use them to recognise other views of the same thing.' });
+      refs.forEach((r, i) => { seg.push({ text: `R${i}: "${r.suggested}" — ${r.what || ''} (${r.kind || ''})` }); seg.push({ image: r.dataUrl }); });
+      seg.push({ text: 'Items to name follow.' });
+    }
+    batch.forEach((it, i) => { seg.push({ text: contextLine(it, i) }); seg.push({ image: it.dataUrl }); });
+    seg.push({ text: closing(batch.length) });
+    return seg;
+  }
+
+  async function postJson(url, headers, body, retry) {
+    const res = await fetch(url, { method: 'POST', headers: { 'content-type': 'application/json', ...headers }, body: JSON.stringify(body) });
+    if (res.status === 429 || res.status >= 500) {
+      if (retry > 0) { await new Promise((r) => setTimeout(r, 2500)); return postJson(url, headers, body, retry - 1); }
+      throw new Error(`API ${res.status}: rate limited or unavailable`);
+    }
+    if (!res.ok) {
+      let msg = `API ${res.status}`;
+      try { const j = await res.json(); msg = (j.error && j.error.message) || msg; } catch {}
+      throw new Error(msg);
+    }
+    return res.json();
+  }
+
+  async function callClaude(segments, key, model) {
+    const content = segments.map((s) => s.image ? { type: 'image', source: { type: 'base64', media_type: 'image/png', data: s.image.split(',')[1] } } : { type: 'text', text: s.text });
+    const data = await postJson(CLAUDE_URL, { 'x-api-key': key, 'anthropic-version': '2023-06-01', 'anthropic-dangerous-direct-browser-access': 'true' },
+      { model, max_tokens: 1500, system: SYSTEM, messages: [{ role: 'user', content }] }, 1);
+    return (data.content || []).filter((c) => c.type === 'text').map((c) => c.text).join('');
+  }
+
+  async function callGemini(segments, key, model) {
+    const parts = segments.map((s) => s.image ? { inlineData: { mimeType: 'image/png', data: s.image.split(',')[1] } } : { text: s.text });
+    const data = await postJson(GEMINI_URL(model), { 'x-goog-api-key': key },
+      { systemInstruction: { parts: [{ text: SYSTEM }] }, contents: [{ role: 'user', parts }], generationConfig: { responseMimeType: 'application/json', temperature: 0.2, maxOutputTokens: 4096 } }, 1);
+    const cand = (data.candidates || [])[0];
+    if (!cand) throw new Error((data.promptFeedback && data.promptFeedback.blockReason) ? `Blocked: ${data.promptFeedback.blockReason}` : 'Empty response');
+    return ((cand.content && cand.content.parts) || []).map((p) => p.text || '').join('');
+  }
+
+  async function callProxy(batch, key, model, refs) {
+    const [up, upModel] = (model === '__custom' ? $('#customModel').value.trim() : model).split(':');
+    const body = {
+      provider: up || 'anthropic', model: upModel || null, api_key: key || null,
+      project: $('#project').value.trim() || 'default', critic: $('#p_critic').checked, learn: $('#p_learn').checked,
+      items: batch.map((it) => ({ key: it.key, category: it.category, name: it.name, text: it.text || '', desc: it.desc || '', w: it.w, h: it.h, image: it.dataUrl.split(',')[1] })),
+      references: (refs || []).map((r) => ({ name: r.suggested, what: r.what || '', kind: r.kind || r.category, image: r.dataUrl.split(',')[1] })),
+    };
+    const data = await postJson(`${proxyUrl()}/name`, {}, body, 1);
+    const byKey = new Map((data.results || []).map((r) => [r.key, r]));
+    for (const it of batch) {
+      const r = byKey.get(it.key); if (!r) continue;
+      it.kind = r.kind || it.category; it.source = r.source; it.confidence = r.confidence;
+      if (r.kind === 'abstract' || !r.name) { it.suggested = ''; it.needsName = true; it.what = r.what || 'too abstract to name'; continue; }
+      it.suggested = r.name; it.what = r.what || ''; it.needsName = false;
+      if (r.note) it.what = `${it.what}${it.what ? ' · ' : ''}${r.note}`;
+    }
+  }
+
+  const KINDS = new Set(['icon', 'symbol', 'logo', 'character', 'illustration', 'image', 'avatar', 'screen', 'section', 'nav', 'card', 'list-item', 'button', 'badge', 'input', 'tagline', 'copy', 'shape', 'debris', 'abstract']);
+  function applyRows(batch, arr) {
+    for (const e of arr) {
+      const it = batch[+e.i]; if (!it) continue;
+      const kind = KINDS.has(e.kind) ? e.kind : it.category;
+      const conf = typeof e.confidence === 'number' ? Math.max(0, Math.min(1, e.confidence)) : 0.7;
+      const name = String(e.name || '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 40);
+      it.kind = kind; it.confidence = conf; it.what = String(e.what || '').slice(0, 90);
+      if (kind === 'abstract' || !name || GENERIC.has(name)) { it.suggested = ''; it.needsName = true; it.kind = kind === 'abstract' ? it.category : kind; if (!it.what) it.what = 'too abstract to name'; }
+      else { it.suggested = name; it.needsName = false; }
+    }
+  }
+
+  async function aiName(batch, key, model, refs = []) {
+    if (provider() === 'proxy') { await callProxy(batch, key, model === '__custom' ? '__custom' : model, refs); return; }
+    const segments = segmentsFor(batch, refs);
+    const text = provider() === 'gemini' ? await callGemini(segments, key, model) : await callClaude(segments, key, model);
+    const m = text.match(/\[[\s\S]*\]/);
+    if (!m) throw new Error('Model did not return JSON');
+    let arr; try { arr = JSON.parse(m[0]); } catch { throw new Error('Could not parse model JSON'); }
+    applyRows(batch, arr);
+  }
+
+  // second look: low-confidence characters/illustrations/symbols get another pass with the confidently-named characters and logos as references
+  async function reconcileCharacters(key, model) {
+    const refs = aiItems.filter((it) => it.suggested && (it.kind === 'character' || it.kind === 'logo') && (it.confidence || 0) >= 0.8).slice(0, 6);
+    const cands = aiItems.filter((it) => ['character', 'illustration', 'symbol', 'abstract'].includes(it.kind || it.category) && (it.needsName || (it.confidence || 0) < 0.7) && !refs.includes(it));
+    if (!refs.length || !cands.length) return 0;
+    aiStatus(`Second look at ${cands.length} items using ${refs.length} reference character${refs.length === 1 ? '' : 's'}…`);
+    let changed = 0;
+    for (let i = 0; i < cands.length; i += 8) {
+      const b = cands.slice(i, i + 8);
+      const before = b.map((it) => it.suggested);
+      try { await aiName(b, key, model, refs); } catch (e) { continue; }
+      b.forEach((it, n) => { if (it.suggested && it.suggested !== before[n]) { changed++; it.source = 'reference'; } });
+    }
+    return changed;
+  }
+
+  function dedupeNames() {
+    const seen = new Map();
+    for (const it of aiItems) {
+      if (!it.suggested) continue;
+      const k = `${it.category}|${it.suggested}`; const n = (seen.get(k) || 0) + 1; seen.set(k, n);
+      if (n > 1) it.suggested = `${it.suggested}-${n}`;
+    }
+  }
+
+  function renderAi() {
+    $('#aiRows').innerHTML = aiItems.map((it, i) => `<div class="ai-row" data-i="${i}" ${it.needsName ? 'style="background:var(--bg2);margin:0 -16px;padding:5px 16px"' : ''}>
+      <input type="checkbox" ${it.suggested ? 'checked' : ''} ${it.suggested || it.needsName ? '' : 'disabled'} />
+      <img src="${it.dataUrl}" alt="" />
+      <div>
+        <input type="text" value="${esc(it.suggested || '')}" placeholder="${it.needsName ? 'Too abstract for the model — name it' : it.error ? esc(it.error) : 'no suggestion'}" ${it.suggested || it.needsName ? '' : 'disabled'} ${it.needsName ? 'style="border-color:var(--line)"' : ''} />
+        <div class="old"><b>${esc(it.kind && it.kind !== it.category ? `${it.category} → ${it.kind}` : it.category)}</b>${it.source ? ` · ${esc(it.source)}` : ''}${typeof it.confidence === 'number' ? ` · ${Math.round(it.confidence * 100)}%` : ''} · was "${esc(it.name)}"${it.ids.length > 1 ? ` · ${it.ids.length} layers` : ''}${it.what ? ` · ${esc(it.what)}` : ''}</div>
+      </div>
+    </div>`).join('');
+    $('#aiApply').hidden = false; $('#aiAll').hidden = false;
+    updateApplyCount();
+    $('#aiSec').scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
+
+  // ---------- tiny store-only zip writer ----------
+  const CRC = (() => { const t = new Uint32Array(256); for (let n = 0; n < 256; n++) { let c = n; for (let k = 0; k < 8; k++) c = c & 1 ? 0xEDB88320 ^ (c >>> 1) : c >>> 1; t[n] = c >>> 0; } return t; })();
+  function crc32(u8) { let c = 0xFFFFFFFF; for (let i = 0; i < u8.length; i++) c = CRC[(c ^ u8[i]) & 0xFF] ^ (c >>> 8); return (c ^ 0xFFFFFFFF) >>> 0; }
+  function zip(files) {
+    const enc = new TextEncoder(), parts = [], central = []; let offset = 0;
+    const u16 = (n) => [n & 255, (n >> 8) & 255], u32 = (n) => [n & 255, (n >> 8) & 255, (n >> 16) & 255, (n >>> 24) & 255];
+    const d = new Date(), dosTime = ((d.getHours() << 11) | (d.getMinutes() << 5) | (d.getSeconds() >> 1)) & 0xFFFF, dosDate = (((d.getFullYear() - 1980) << 9) | ((d.getMonth() + 1) << 5) | d.getDate()) & 0xFFFF;
+    for (const [name, content] of Object.entries(files)) {
+      const n = enc.encode(name), data = enc.encode(content), crc = crc32(data);
+      const head = new Uint8Array([0x50, 0x4B, 3, 4, ...u16(20), ...u16(0x800), ...u16(0), ...u16(dosTime), ...u16(dosDate), ...u32(crc), ...u32(data.length), ...u32(data.length), ...u16(n.length), ...u16(0)]);
+      parts.push(head, n, data);
+      central.push(new Uint8Array([0x50, 0x4B, 1, 2, ...u16(20), ...u16(20), ...u16(0x800), ...u16(0), ...u16(dosTime), ...u16(dosDate), ...u32(crc), ...u32(data.length), ...u32(data.length), ...u16(n.length), ...u16(0), ...u16(0), ...u16(0), ...u16(0), ...u32(0), ...u32(offset)]), n);
+      offset += head.length + n.length + data.length;
+    }
+    const cdSize = central.reduce((a, b) => a + b.length, 0);
+    const end = new Uint8Array([0x50, 0x4B, 5, 6, ...u16(0), ...u16(0), ...u16(central.length / 2), ...u16(central.length / 2), ...u32(cdSize), ...u32(offset), ...u16(0)]);
+    return new Blob([...parts, ...central, end], { type: 'application/zip' });
+  }
+</script>

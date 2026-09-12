@@ -1,0 +1,14 @@
+{
+  "name": "DS Foundry",
+  "id": "1000000000000000101",
+  "api": "1.0.0",
+  "main": "dist/code.js",
+  "ui": "dist/ui.html",
+  "editorType": ["figma"],
+  "documentAccess": "dynamic-page",
+  "networkAccess": {
+    "allowedDomains": ["https://api.anthropic.com", "https://generativelanguage.googleapis.com"],
+    "devAllowedDomains": ["http://localhost:8000"],
+    "reasoning": "Optional AI naming sends layer thumbnails to the Claude API or the Gemini API using the user's own API key, or to a local DS Foundry naming server (LangGraph) on localhost."
+  }
+}
