@@ -1,0 +1,252 @@
+{
+  "version": 1,
+  "label_author": "Codex visual review, with user-supplied Ollie identity",
+  "missing_coverage": [
+    "logos: no verified real logo export available",
+    "debris: need confirmed accidental vectors and source geometry",
+    "geometry similarity: stored thumbnails have no source vector networks"
+  ],
+  "items": [
+    {
+      "id": "reference-ollie",
+      "image": "images/reference-ollie.png",
+      "sha256": "d64f6ea49d97541d0de1f94e8c0a5690d342fd3bd3feb0730b682e22076d5034",
+      "label": "Ollie, blue, waving",
+      "group": "ollie",
+      "split": "reference",
+      "required_terms": [],
+      "expected_ollie_match": null,
+      "accepted_kinds": [],
+      "notes": "Identity supplied by user; pose visually reviewed."
+    },
+    {
+      "id": "blue-running",
+      "image": "images/blue-running.png",
+      "sha256": "19f6b2e6eca2dd3adf3ab5c8d5a1338b9621d68ccdb3434c3b5e672b6f0c0416",
+      "label": "Blue Ollie, wings extended",
+      "group": "ollie",
+      "split": "test",
+      "required_terms": [
+        [
+          "ollie"
+        ]
+      ],
+      "expected_ollie_match": true,
+      "accepted_kinds": [],
+      "notes": ""
+    },
+    {
+      "id": "blue-drinking",
+      "image": "images/blue-drinking.png",
+      "sha256": "91884bb5bb790349ccd3e69f24790e67bec19db460607aba20c92d15a8678938",
+      "label": "Blue Ollie drinking from a juice box",
+      "group": "ollie",
+      "split": "test",
+      "required_terms": [
+        [
+          "ollie"
+        ],
+        [
+          "drink",
+          "drinking",
+          "juice",
+          "sip",
+          "sipping"
+        ]
+      ],
+      "expected_ollie_match": true,
+      "accepted_kinds": [],
+      "notes": ""
+    },
+    {
+      "id": "gray-standing",
+      "image": "images/gray-standing.png",
+      "sha256": "f700da306ccefffab6e0b8662d029f777b784f901fbbb5be495507e3a484e281",
+      "label": "Gray owl standing",
+      "group": "character",
+      "split": "test",
+      "required_terms": [
+        [
+          "owl",
+          "ollie"
+        ]
+      ],
+      "expected_ollie_match": null,
+      "accepted_kinds": [],
+      "notes": "Ollie family identity provisional; excluded from identity-match score."
+    },
+    {
+      "id": "gray-guitar",
+      "image": "images/gray-guitar.png",
+      "sha256": "12ae2506cffb1093e30135c7f1bd43da538bb6c9e791eee6d65a5bfea36bd5ba",
+      "label": "Gray owl playing a guitar",
+      "group": "character",
+      "split": "test",
+      "required_terms": [
+        [
+          "owl",
+          "ollie"
+        ],
+        [
+          "guitar",
+          "ukulele"
+        ]
+      ],
+      "expected_ollie_match": null,
+      "accepted_kinds": [],
+      "notes": "Ollie family identity provisional; excluded from identity-match score."
+    },
+    {
+      "id": "beak-part",
+      "image": "images/beak-part.png",
+      "sha256": "b4a5165865bd8c53d9ecfe629d26cd0303a1adcb6727a70be237e2897be3e0f7",
+      "label": "Yellow beak fragment",
+      "group": "fragment",
+      "split": "test",
+      "required_terms": [
+        [
+          "beak"
+        ]
+      ],
+      "expected_ollie_match": false,
+      "accepted_kinds": [
+        "symbol",
+        "icon",
+        "shape",
+        "illustration"
+      ],
+      "notes": "A purposeful character part, not debris or a whole character."
+    },
+    {
+      "id": "wing-part",
+      "image": "images/wing-part.png",
+      "sha256": "f910d94855b83627246091c285da3e1dd33dca393a46aecc5467092c70d4135b",
+      "label": "Blue wing fragment",
+      "group": "fragment",
+      "split": "test",
+      "required_terms": [
+        [
+          "wing"
+        ]
+      ],
+      "expected_ollie_match": false,
+      "accepted_kinds": [
+        "symbol",
+        "icon",
+        "shape",
+        "illustration"
+      ],
+      "notes": ""
+    },
+    {
+      "id": "face-mask-part",
+      "image": "images/face-mask-part.png",
+      "sha256": "68620ee5a20fb77c8a79a81933a67f36a5b57df5d27d0285ef2721285c3809ed",
+      "label": "White eye mask with beak, no pupils",
+      "group": "fragment",
+      "split": "test",
+      "required_terms": [
+        [
+          "face",
+          "mask",
+          "eyes",
+          "eye"
+        ]
+      ],
+      "expected_ollie_match": false,
+      "accepted_kinds": [
+        "symbol",
+        "icon",
+        "shape",
+        "illustration"
+      ],
+      "notes": ""
+    },
+    {
+      "id": "two-owls",
+      "image": "images/two-owls.png",
+      "sha256": "79131d24827cd7dedbe642668b5deabd6c0892dfbd59f3a32585cf8a2838b06a",
+      "label": "Pink and yellow owls with popsicle",
+      "group": "scene",
+      "split": "test",
+      "required_terms": [
+        [
+          "owl",
+          "owls",
+          "friends"
+        ],
+        [
+          "popsicle",
+          "ice"
+        ]
+      ],
+      "expected_ollie_match": false,
+      "accepted_kinds": [
+        "illustration",
+        "image"
+      ],
+      "notes": ""
+    },
+    {
+      "id": "three-backs",
+      "image": "images/three-backs.png",
+      "sha256": "8b3630a8bafb285b70d5a4b547c89fce318c85393cebc3f4a10f997c363d6f48",
+      "label": "Three owl backs",
+      "group": "scene",
+      "split": "test",
+      "required_terms": [
+        [
+          "owl",
+          "owls",
+          "trio"
+        ],
+        [
+          "back",
+          "backs"
+        ]
+      ],
+      "expected_ollie_match": false,
+      "accepted_kinds": [
+        "illustration",
+        "image"
+      ],
+      "notes": ""
+    },
+    {
+      "id": "cloud-screenshot",
+      "image": "images/cloud-screenshot.png",
+      "sha256": "773c0d231c20f6af816879cf395526dcdb5c942f5f198ff6d70bb2a7631ab12f",
+      "label": "Cloud",
+      "group": "cloud",
+      "split": "test",
+      "required_terms": [
+        [
+          "cloud"
+        ]
+      ],
+      "expected_ollie_match": false,
+      "accepted_kinds": [
+        "icon",
+        "symbol",
+        "illustration"
+      ],
+      "notes": "Original user screenshot includes selection UI and caption; not a clean asset export."
+    },
+    {
+      "id": "pink-ollie-screenshot",
+      "image": "images/pink-ollie-screenshot.png",
+      "sha256": "64bd817b607b9cd196e1f1e1bf722539fd2221246504aee2cfac909e9ce910b6",
+      "label": "Pink Ollie",
+      "group": "ollie",
+      "split": "test",
+      "required_terms": [
+        [
+          "ollie"
+        ]
+      ],
+      "expected_ollie_match": true,
+      "accepted_kinds": [],
+      "notes": "User-identified pink Ollie; original screenshot includes contact-sheet caption and partial neighbor."
+    }
+  ]
+}

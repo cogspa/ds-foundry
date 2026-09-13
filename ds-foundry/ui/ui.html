@@ -114,8 +114,8 @@
   .ai-row input[type=text] { width: 100%; border: 1px solid transparent; border-radius: 4px; padding: 2px 4px; background: transparent; font-weight: 500; }
   .ai-row input[type=text]:hover, .ai-row input[type=text]:focus { border-color: var(--line); background: var(--bg); }
   .ai-row .what { color: var(--ink2); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .ai-foot { display: flex; gap: 8px; align-items: center; margin-top: 10px; }
-  .ai-foot .grow { flex: 1; color: var(--ink2); }
+  .ai-foot { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-top: 10px; }
+  .ai-foot .grow { flex: 1 1 140px; color: var(--ink2); }
 
   footer { display: flex; gap: 8px; align-items: center; padding: 10px 16px; border-top: 1px solid var(--line); background: var(--bg); }
   footer .grow { flex: 1; }
@@ -123,7 +123,7 @@
 </style>
 
 <header>
-  <h1>DS Foundry</h1><span class="ver">1.4.0</span>
+  <h1>DS Foundry</h1><span class="ver">1.5.0</span>
   <span class="grow"></span>
   <div class="seg" role="radiogroup" aria-label="Scope">
     <label><input type="radio" name="scope" value="selection" /><span>Selection</span></label>
@@ -134,12 +134,42 @@
 </header>
 
 <main>
+  <section id="sheetIdentify">
+    <h2>Identify a contact-sheet item</h2>
+    <p class="hint" id="sheetHint">Select one preview or caption in a generated Assets or Icons sheet. Older sheets need to be rebuilt once to enable source links.</p>
+    <div id="sheetFields" hidden>
+      <input id="sheetName" type="text" placeholder="Name, e.g. cloud or ollie-eyes" aria-label="Asset name" />
+      <div id="sheetTraits"></div>
+      <label class="hint" style="display:block;margin:8px 0"><input id="sheetMatch" type="checkbox" checked /> Also name unnamed exact matches in linked sheets</label>
+      <button class="btn primary" id="sheetApply">Update original &amp; sheets</button>
+      <button class="btn" id="sheetSaveReference">Save as reference</button>
+    </div>
+  </section>
   <div class="empty" id="empty">
     <p>Scan a page, a selection, or the whole file.</p>
     <p>DS Foundry reads every layer, collects colours, type, spacing, radii and effects, recognises buttons, inputs, cards, nav bars, icons and more, then builds styles, variables, component sets and documented foundation pages from what it finds.</p>
-    <p>Nothing in the file changes until you press Build.</p>
+    <p>Scan and Resolve are read-only. Build, Apply names and Apply approved make the changes you choose.</p>
   </div>
 
+  <section id="logoInspector">
+    <h2>Logo composition inspector</h2>
+    <p class="hint">Select original artwork or a linked contact-sheet item. Review the symbol (logotype) and lettering (signature). Regions follow existing layers; outlined lettering needs your input.</p>
+    <button class="btn" id="logoInspect">Inspect selected logo</button>
+    <p id="logoStatus" class="hint" aria-live="polite"></p>
+    <div id="logoFields" hidden><input id="logoName" aria-label="Approved logo name" placeholder="e.g. owting-logo" />
+    <div id="logoPreview" style="position:relative;width:100%;margin:12px 0;background:#ddd"></div>
+    <div id="logoRegions"></div>
+    <button class="btn primary" id="logoSave">Save composition &amp; approved logo reference</button>
+    <p class="hint">Saves region metadata on the original and a logo reference to the selected library project. Does not rename layers or confirm the source category. Reinspect after changing artwork.</p></div>
+  </section>
+  <section id="referenceLibrary">
+    <h2>Saved reference library</h2>
+    <p class="hint">Approved examples are shared across files using the same project on this server. Rename/delete here changes the library only.</p>
+    <div class="field"><label for="libraryProject">Project</label><input id="libraryProject" value="default" type="text" /></div>
+    <div class="field"><label for="libraryServer">Server</label><input id="libraryServer" value="http://localhost:8000" type="text" /></div>
+    <div class="row" style="margin-top:8px"><button class="btn" id="libraryLoad">Load library</button><button class="btn" id="librarySave">Save selected review items</button></div>
+    <p class="hint" id="libraryStatus"></p><div id="libraryRows" style="max-height:300px;overflow:auto"></div><details><summary>Rejected matches</summary><button class="btn small" id="rejectionsLoad">Load decisions</button><button class="btn small" id="rejectionsRetry" hidden>Retry saving decisions</button><p class="hint" id="rejectionsStatus"></p><div id="rejectionsRows" style="max-height:200px;overflow:auto"></div></details>
+  </section>
   <section id="inventory" hidden>
     <h2>Inventory <small id="invMeta"></small></h2>
     <div class="ledger" id="ledger"></div>
@@ -155,17 +185,18 @@
   </section>
 
   <section id="aiSec" hidden>
-    <h2>AI naming <small>names layers by what they look like</small></h2>
+    <h2>Identify &amp; name <small>names layers by what they look like</small></h2>
     <div class="ai-head">
       <div class="field"><select id="provider">
         <option value="anthropic">Claude</option>
         <option value="gemini">Gemini</option>
-        <option value="proxy">Proxy (LangGraph server)</option>
+        <option value="proxy" selected>Local server (.env keys)</option>
       </select></div>
-      <div class="field"><input type="password" id="apiKey" placeholder="Anthropic API key (sk-ant-…)" autocomplete="off" spellcheck="false" /></div>
+      <div class="field" id="apiKeyField"><input type="password" id="apiKey" placeholder="Anthropic API key (sk-ant-…)" autocomplete="off" spellcheck="false" /></div>
       <div class="field"><select id="model"></select></div>
     </div>
     <div class="field" id="customModelRow" hidden style="margin-top:6px"><label for="customModel">Model ID</label><input type="text" id="customModel" placeholder="model id — in proxy mode use provider:model, e.g. gemini:gemini-3.8-flash" spellcheck="false" /></div>
+    <p class="hint" id="serverKeyHint">Local server mode uses the server’s .env keys. No key needs to be pasted here.</p>
     <div class="row" id="proxyRow" hidden style="margin-top:6px;gap:10px">
       <div class="field" style="flex:1"><label for="proxyUrl">Server</label><input type="text" id="proxyUrl" value="http://localhost:8000" spellcheck="false" /></div>
       <div class="field"><label for="project" style="width:auto">Project</label><input type="text" id="project" value="default" style="width:90px" spellcheck="false" /></div>
@@ -184,14 +215,33 @@
       <label><input type="checkbox" id="t_prefix" checked /> Add prefix and category path</label>
       <label class="field" style="gap:6px"><span style="color:var(--ink2)">Max items</span><input type="text" id="t_max" value="300" style="width:52px;border:1px solid var(--line);border-radius:6px;padding:3px 6px;background:var(--bg)" /></label>
     </div>
-    <p class="hint" id="aiHint">Identical layers are named once and renamed together. Items the model can't name honestly are flagged for you instead of guessed; confidently named characters and logos are used as references to recognise their other views. Keys are stored only on this device and sent straight to the provider you pick. Proxy mode sends batches to your own DS Foundry server, which adds a critic pass, a shared glossary and a cache. Thumbnails are small (≤ 384 px) to keep cost low.</p>
+    <p class="hint" id="aiHint">Identical layers are named once and renamed together. Items the model can't name honestly are flagged for you instead of guessed; confidently named characters and logos are used as references to recognise their other views. Established descriptive names are used as references. Exact geometry can inherit a name with measured appearance suffixes; shared vector parts, palette, and stroke thickness guide visual comparison for changed poses. Review suggested identities before applying. Keys are stored only on this device and sent straight to the provider you pick. Proxy mode sends batches to your own DS Foundry server, which adds a critic pass, a shared glossary and a cache. Thumbnails are small (≤ 384 px) to keep cost low.</p>
     <div class="ai-foot">
-      <button class="btn" id="aiSuggest">Suggest names</button>
+      <button class="btn" id="aiSuggest">Identify &amp; suggest names</button>
       <span class="grow" id="aiStatus"></span>
       <button class="btn small" id="aiAll" hidden>Select all</button>
-      <button class="btn primary" id="aiApply" hidden>Apply names</button>
+      <button class="btn" id="aiApply" hidden>Apply names</button>
+      <button class="btn primary" id="aiBuild" hidden>Apply names &amp; build sheets</button>
     </div>
+    <label class="hint" style="display:block;margin-top:10px"><input id="reuseCorrections" type="checkbox" checked /> Use names I enter to identify similar unnamed items (up to 8 visual comparisons per correction)</label>
     <div class="ai-rows" id="aiRows"></div>
+  </section>
+
+  <section id="canonicalSec" hidden>
+    <h2>Canonical Assets <small>identity across appearances</small></h2>
+    <p class="hint">Match appearances of the same asset. For names describing what each item represents, use Identify & name above, review the results, then Apply names & build sheets.</p>
+    <div class="field" style="margin-top:8px"><label for="assetServer">Server</label><input id="assetServer" type="text" value="http://localhost:8000" /></div>
+    <div class="field" style="margin-top:6px"><label for="assetProject">Project</label><input id="assetProject" type="text" value="default" /></div>
+    <label style="display:block;margin:8px 0"><input id="assetModel" type="checkbox" /> Compare ambiguous images (uses AI naming provider/model; up to 8 calls)</label>
+    <div class="row" style="flex-wrap:wrap">
+      <button class="btn" id="assetResolve">Resolve assets</button>
+      <button class="btn primary" id="assetApply" disabled>Apply approved</button>
+      <button class="btn small" id="assetExport" disabled>asset-map.json</button>
+      <button class="btn small" id="assetSave" hidden>Retry saving references</button>
+    </div>
+    <p class="hint" id="assetStatus" role="status" style="margin-top:8px"></p>
+    <div id="assetReview" style="max-height:540px;overflow:auto"></div>
+    <div id="assetProposals"></div>
   </section>
 
   <section id="buildSec" hidden>
@@ -205,6 +255,7 @@
         </div>
       </div>
     </div>
+    <label style="display:block;margin:10px 0"><input type="checkbox" id="o_identify" checked /> Identify artwork and review names before building (uses selected AI provider)</label>
     <div class="opts">
       <label><input type="checkbox" id="o_labels" checked /> Label layers</label>
       <label><input type="checkbox" id="o_styles" checked /> Colour, text and effect styles</label>
@@ -243,7 +294,8 @@
 <script>
   const $ = (s) => document.querySelector(s);
   const send = (m) => parent.postMessage({ pluginMessage: m }, '*');
-  let summary = null, built = null, tab = 'colors';
+  let summary = null, built = null, tab = 'colors', sheetCellId=null;
+  $('#sheetApply').onclick=()=>{if(!sheetCellId)return;setBusy(true,'Updating source artwork and sheets…');send({type:'sheet_identify',cellId:sheetCellId,name:$('#sheetName').value,match:$('#sheetMatch').checked,assetName:readTraits($('#sheetTraits'))});};
 
   const scope = () => document.querySelector('input[name=scope]:checked').value;
   const grid = () => +document.querySelector('input[name=grid]:checked').value;
@@ -258,6 +310,9 @@
 
   // ---------- state ----------
   function setBusy(on, label) {
+    window.dispatchEvent(new CustomEvent('dsf-busy',{detail:on}));
+    $('#sheetSaveReference').disabled=on;$('#sheetApply').disabled=on; $('#sheetFields').inert=on;
+    $('#aiSuggest').disabled = on; $('#aiApply').disabled = on; $('#aiBuild').disabled = on;
     $('#scan').disabled = on; $('#build').disabled = on || !summary; $('#revert').disabled = on;
     $('#cancel').hidden = !on;
     $('#progress').hidden = !on;
@@ -267,7 +322,7 @@
   function status(msg, err) { const s = $('#status'); s.textContent = msg || ''; s.classList.toggle('err', !!err); }
 
   $('#scan').onclick = () => { built = null; $('#results').hidden = true; setBusy(true, 'Scanning…'); send({ type: 'scan', scope: scope(), baseGrid: grid(), prefix: normPrefix($('#prefix').value) }); };
-  $('#build').onclick = () => { setBusy(true, 'Building…'); send({ type: 'build', options: opts() }); };
+  $('#build').onclick = () => { if ($('#o_identify').checked) { pendingBuildOptions=opts(); $('#t_icons').checked=true; $('#t_art').checked=true; $('#t_components').checked=true; $('#aiSec').scrollIntoView({behavior:'smooth',block:'start'}); $('#aiSuggest').click(); return; } setBusy(true, 'Building…'); send({ type: 'build', options: opts() }); };
   $('#cancel').onclick = () => { send({ type: 'cancel' }); status('Stopping…'); };
   $('#revert').onclick = () => { setBusy(true, 'Restoring layer names…'); send({ type: 'revert' }); };
   $('#prefix').addEventListener('change', () => { if (summary) send({ type: 'relabel', prefix: normPrefix($('#prefix').value) }); });
@@ -277,16 +332,22 @@
 
   window.onmessage = (e) => {
     const m = e.data.pluginMessage; if (!m) return;
+    if(m.type==='logo_inspected'){showLogoComposition(m.data);}
+    if(m.type==='logo_saved'){persistLogoReference(m.entry);}
+    if(m.type==='logo_error'){$('#logoStatus').textContent=m.msg;$('#logoSave').disabled=false;$('#logoInspect').disabled=false;}
+    if(m.type==='sheet_reference_ready'){saveSheetReference(m.entry);}
+    if(m.type==='sheet_selection'){sheetCellId=m.cellId;$('#sheetFields').hidden=!sheetCellId;if(sheetCellId){$('#sheetName').value=m.name||'';$('#sheetTraits').innerHTML=traitFields(m.assetName);$('#sheetHint').textContent='Original: '+m.sourceName;}else $('#sheetHint').textContent='Select one preview or caption in an Assets or Icons sheet. Rebuild older sheets once to enable source links.';}
+    if(m.type==='sheet_identified'){setBusy(false,`Named ${m.sources} source layers and updated ${m.sheets} sheet entries.`);$('#sheetName').value=m.name;}
     if (m.type === 'progress') { $('#progress').hidden = false; $('#progress i').style.width = m.pct + '%'; status(m.msg); }
     if (m.type === 'scanned') { summary = m.summary; setBusy(false, `Scanned ${summary.nodeCount.toLocaleString()} layers on ${summary.pages.length} page${summary.pages.length === 1 ? '' : 's'}.`); renderInventory(); }
     if (m.type === 'built') { built = m.result; setBusy(false, 'Design system built.'); renderResults(); }
     if (m.type === 'reverted') { setBusy(false, `Restored ${m.count} layer names.`); }
-    if (m.type === 'error') { setBusy(false); aiBusy = false; aiStatus(m.msg, true); status(m.msg, true); }
-    if (m.type === 'ai_keys') { aiKeys = m.keys || {}; $('#apiKey').value = aiKeys[provider()] || ''; }
-    if (m.type === 'ai_items') { aiReceive(m); }
-    if (m.type === 'ai_applied') { setBusy(false, `Renamed ${m.count} layers.`); aiStatus(`Renamed ${m.count} layers. Revert labels restores the originals.`); $('#aiApply').hidden = true; $('#aiAll').hidden = true; $('#aiRows').innerHTML = ''; }
+    if (m.type === 'error') { buildAfterNames = false; setBusy(false); aiBusy = false; aiStatus(m.msg, true); status(m.msg, true); }
+    if (m.type === 'ai_keys') { aiKeys = m.keys || {}; $('#apiKey').value = provider()==='proxy' ? '' : aiKeys[provider()] || ''; }
+    if (m.type === 'ai_items') { aiReceiveQueue = aiReceiveQueue.then(() => aiReceive(m)).catch(e => { aiBusy=false; setBusy(false); aiStatus(String(e.message || e),true); }); }
+    if (m.type === 'ai_applied') { setBusy(false, `Renamed ${m.count} layers.`); aiStatus(`Renamed ${m.count} layers. Revert labels restores the originals.`); $('#aiApply').hidden = true; $('#aiBuild').hidden = true; $('#aiAll').hidden = true; $('#aiRows').innerHTML = ''; if (buildAfterNames) { buildAfterNames = false; setBusy(true, 'Building named contact sheets…'); send({type:'build',options:pendingBuildOptions || {...opts(),labels:false,styles:false,variables:false,foundations:false,tidy:false,components:true,icons:true,assets:true}}); pendingBuildOptions=null; } }
   };
-  send({ type: 'ai_key_get' });
+  send({ type: 'ai_key_get' }); send({type:'sheet_inspect'});
 
   // ---------- inventory ----------
   const K = [
@@ -298,7 +359,7 @@
     return { colors: summary.colors.length, types: summary.types.length, spacing: summary.spacing.length, radii: summary.radii.length, effects: summary.effects.length, elements: el, icons: summary.icons.count };
   }
   function renderInventory() {
-    $('#empty').hidden = true; $('#inventory').hidden = false; $('#aiSec').hidden = false; $('#buildSec').hidden = false; $('#revert').hidden = false;
+    $('#empty').hidden = true; $('#inventory').hidden = false; $('#aiSec').hidden = false; $('#canonicalSec').hidden = false; $('#buildSec').hidden = false; $('#revert').hidden = false;
     aiReset();
     $('#invMeta').textContent = summary.pages.length === 1 ? summary.pages[0] : `${summary.pages.length} pages`;
     const c = counts();
@@ -342,7 +403,7 @@
     const r = built;
     $('#stats').innerHTML = [
       [r.paintStyles + r.textStyles + r.effectStyles, 'styles'], [r.variables, 'variables'], [r.labeled, 'layers labelled'],
-      [r.componentSets, 'component sets'], [r.components, 'variants'], [r.icons, 'icon components'],
+      [r.componentSets, 'component sets'], [r.components, 'variants'], [r.icons, 'icon components'], [r.assets, 'contact-sheet items'],
     ].map(([n, l]) => `<div><b>${n}</b><span>${l}</span></div>`).join('');
     $('#notes').innerHTML = (r.pages.length ? [`Pages: ${r.pages.join(', ')}`] : []).concat(r.notes).map((n) => `<li>${esc(n)}</li>`).join('');
     const names = Object.keys(r.files);
@@ -388,50 +449,62 @@
   function renderModels() {
     const p = PROVIDERS[provider()];
     $('#model').innerHTML = p.models.map(([id, label]) => `<option value="${id}">${label}</option>`).join('') + `<option value="__custom">Custom model ID…</option>`;
+    $('#apiKeyField').hidden = provider()==='proxy';
     $('#apiKey').placeholder = p.keyHint;
-    $('#apiKey').value = aiKeys[provider()] || '';
+    $('#apiKey').value = provider()==='proxy' ? '' : aiKeys[provider()] || '';
     $('#customModelRow').hidden = true;
-    $('#proxyRow').hidden = provider() !== 'proxy';
+    $('#proxyRow').hidden = provider() !== 'proxy'; $('#serverKeyHint').hidden=provider()!=='proxy';
     if (provider() === 'proxy' && aiKeys.proxyUrl) $('#proxyUrl').value = aiKeys.proxyUrl;
   }
   $('#proxyUrl').addEventListener('change', () => { aiKeys.proxyUrl = proxyUrl(); send({ type: 'ai_key_set', provider: 'proxyUrl', key: aiKeys.proxyUrl }); });
   $('#provider').addEventListener('change', renderModels);
   $('#model').addEventListener('change', () => { $('#customModelRow').hidden = $('#model').value !== '__custom'; if (!$('#customModelRow').hidden) $('#customModel').focus(); });
   renderModels();
+  let pendingBuildOptions = null;
+  let buildAfterNames = false, aiReceiveQueue = Promise.resolve();
   let aiItems = [], aiBusy = false, aiExpected = 0, aiDoneStreaming = false;
   const GENERIC = new Set(['icon', 'image', 'frame', 'group', 'vector', 'rectangle', 'shape', 'component', 'layer', 'screen', 'card', 'element', 'item', 'picture', 'graphic']);
 
   function aiStatus(msg, err) { const s = $('#aiStatus'); s.textContent = msg || ''; s.style.color = err ? 'var(--danger)' : ''; }
-  function aiReset() { aiItems = []; aiBusy = false; $('#aiRows').innerHTML = ''; $('#aiApply').hidden = true; $('#aiAll').hidden = true; aiStatus(''); }
+  function aiReset() { aiItems = []; aiBusy = false; $('#aiRows').innerHTML = ''; $('#aiApply').hidden = true; $('#aiBuild').hidden = true; $('#aiAll').hidden = true; aiStatus(''); }
   const targets = () => ({ icons: $('#t_icons').checked, art: $('#t_art').checked, images: $('#t_images').checked, screens: $('#t_screens').checked, cards: $('#t_cards').checked, components: $('#t_components').checked, text: $('#t_text').checked, shapes: $('#t_shapes').checked });
 
   $('#apiKey').addEventListener('change', () => { aiKeys[provider()] = $('#apiKey').value.trim(); send({ type: 'ai_key_set', provider: provider(), key: aiKeys[provider()] }); });
   $('#aiSuggest').onclick = () => {
     const key = $('#apiKey').value.trim();
-    if (!key && provider() !== 'proxy') { aiStatus(`Paste a ${PROVIDERS[provider()].label} API key first.`, true); $('#apiKey').focus(); return; }
+    if (!key && provider() !== 'proxy') { aiStatus(`Direct ${PROVIDERS[provider()].label} mode needs a key here. Select Local server (.env keys) to use your server’s key.`, true); $('#apiKey').focus(); return; }
     if (!modelId() && provider() !== 'proxy') { aiStatus('Enter a model ID.', true); $('#customModel').focus(); return; }
     if (provider() === 'proxy' && !/^https?:\/\//.test(proxyUrl())) { aiStatus('Enter the server URL, e.g. http://localhost:8000', true); $('#proxyUrl').focus(); return; }
     if (aiBusy) return;
     aiItems = []; aiExpected = 0; aiDoneStreaming = false; aiBusy = true;
-    $('#aiRows').innerHTML = ''; $('#aiApply').hidden = true; $('#aiAll').hidden = true;
+    $('#aiRows').innerHTML = ''; $('#aiApply').hidden = true; $('#aiBuild').hidden = true; $('#aiAll').hidden = true;
     setBusy(true, 'Exporting thumbnails…'); aiStatus('Exporting thumbnails…');
     send({ type: 'ai_prepare', targets: targets(), maxItems: Math.max(1, Math.min(2000, +$('#t_max').value || 300)) });
   };
   $('#aiAll').onclick = () => { const boxes = [...document.querySelectorAll('#aiRows input[type=checkbox]')]; const all = boxes.every((b) => b.checked); boxes.forEach((b) => (b.checked = !all)); updateApplyCount(); };
+  $('#aiBuild').onclick = () => { buildAfterNames = true; $('#aiApply').click(); };
   $('#aiApply').onclick = () => {
     const renames = [];
     document.querySelectorAll('#aiRows .ai-row').forEach((row) => {
       if (!row.querySelector('input[type=checkbox]').checked) return;
       const it = aiItems[+row.dataset.i]; const name = row.querySelector('input[type=text]').value.trim();
-      if (name) renames.push({ ids: it.ids, name, category: it.category, kind: it.kind && it.kind !== 'abstract' ? it.kind : it.category });
+      if (name) renames.push({ ids: it.ids, name, category: it.category, kind: it.kind && it.kind !== 'abstract' ? it.kind : it.category,assetName:it.assetName });
     });
-    if (!renames.length) return;
+    if (!renames.length) { buildAfterNames = false; return; }
     setBusy(true, 'Renaming…'); aiStatus('Renaming…');
     send({ type: 'ai_apply', renames, prefix: normPrefix($('#prefix').value), usePrefix: $('#t_prefix').checked });
   };
-  $('#aiRows').addEventListener('change', (e) => { if (e.target.type === 'checkbox') updateApplyCount(); });
-  $('#aiRows').addEventListener('input', (e) => { if (e.target.type === 'text') { const cb = e.target.closest('.ai-row').querySelector('input[type=checkbox]'); cb.checked = !!e.target.value.trim(); updateApplyCount(); } });
-  function updateApplyCount() { const n = document.querySelectorAll('#aiRows input[type=checkbox]:checked').length; $('#aiApply').textContent = `Apply ${n} name${n === 1 ? '' : 's'}`; $('#aiApply').disabled = !n; }
+  $('#aiRows').addEventListener('change', (e) => {
+    if(e.target.hasAttribute('data-match-value')||e.target.hasAttribute('data-match-field'))return;
+    const row=e.target.closest('.ai-row'); if(!row)return;
+    const it=aiItems[+row.dataset.i];
+    if(e.target.type==='checkbox'){it.selected=e.target.checked;updateApplyCount();}
+    if(e.target.hasAttribute('data-trait'))return;
+    if(e.target.type==='text' && e.target.value.trim() && $('#reuseCorrections').checked) reuseIdentification(it);
+  });
+  $('#aiRows').addEventListener('toggle',e=>{if(e.target.tagName!=='DETAILS'||!e.target.hasAttribute('data-identity-details')||e.target.open)return;const row=e.target.closest('.ai-row');if(!row)return;const it=aiItems[+row.dataset.i];if(it.manualName&&it.assetName&&$('#reuseCorrections').checked)reuseIdentification(it);},true);
+  $('#aiRows').addEventListener('input', (e) => { if(e.target.hasAttribute('data-match-value'))return; if(e.target.hasAttribute('data-trait')){const row=e.target.closest('.ai-row'),it=aiItems[+row.dataset.i];it.assetName=readTraits(row);if(it.assetName){it.suggested=window.DSFAssetNames.assetName(it.assetName);row.querySelector('input[type=text]').value=it.suggested;it.referenceName=it.suggested;it.manualName=true;it.needsName=false;it.selected=true;row.querySelector('input[type=checkbox]').checked=true;updateApplyCount();}return;} if (e.target.type === 'text') { const row=e.target.closest('.ai-row'),it=aiItems[+row.dataset.i]; const cb = row.querySelector('input[type=checkbox]'); cb.checked = !!e.target.value.trim(); it.assetName=null;row.querySelectorAll('[data-trait]').forEach(el=>el.value='');it.suggested=e.target.value.trim(); it.selected=cb.checked; it.manualName=true; it.needsName=!it.suggested; it.referenceName=it.suggested || undefined; updateApplyCount(); } });
+  function updateApplyCount() { const n = document.querySelectorAll('#aiRows input[type=checkbox]:checked').length; $('#aiApply').textContent = `Apply ${n} name${n === 1 ? '' : 's'}`; $('#aiApply').disabled = !n; $('#aiBuild').disabled = !n; }
 
   async function aiReceive(m) {
     for (const it of m.items) {
@@ -441,7 +514,7 @@
     }
     aiExpected = m.total;
     aiStatus(`Exported ${aiItems.length} of ${m.total} thumbnails…`);
-    if (m.done) { aiDoneStreaming = true; setBusy(false); await aiRun(); }
+    if (m.done) { aiDoneStreaming = true; await aiRun(); setBusy(false); updateApplyCount(); }
   }
 
   // composite on white, cap the long edge, return a PNG data URL
@@ -450,7 +523,7 @@
     const scale = Math.min(1, MAX_EDGE / Math.max(bmp.width, bmp.height));
     const p = pad ? 16 : 8;
     const c = document.createElement('canvas'); c.width = Math.round(bmp.width * scale) + p * 2; c.height = Math.round(bmp.height * scale) + p * 2;
-    const g = c.getContext('2d'); g.fillStyle = '#ffffff'; g.fillRect(0, 0, c.width, c.height);
+    const g = c.getContext('2d'); g.fillStyle = '#bfbfbf'; g.fillRect(0, 0, c.width, c.height);
     g.drawImage(bmp, p, p, Math.round(bmp.width * scale), Math.round(bmp.height * scale));
     bmp.close && bmp.close();
     return c.toDataURL('image/png');
@@ -459,7 +532,7 @@
   const SYSTEM = `You name layers in a Figma design file. You will receive numbered images with a context line for each (category, current layer name, text found inside).
 For every image return a short, specific, lowercase kebab-case name (1-4 words) describing what it visually depicts or, for UI pieces, what it is for.
 Rules:
-- Icons: name the pictogram by its meaning: search, arrow-left, settings, heart-filled, chevron-down, user-circle.
+- Icons: recognize everyday objects directly, including cloud, sun, moon and tree. Small mascots may be misclassified as icons: compare them with character references and correct their kind. Name the pictogram by its meaning: search, arrow-left, settings, heart-filled, chevron-down, user-circle.
 - Images and avatars: name the subject: mountain-lake-hero, woman-headshot, product-shoe-red.
 - Screens, sections, nav: name the purpose: login, checkout-summary, hero-banner, footer-links, top-nav.
 - Cards and list items: name the content: pricing-plan-pro, order-row, testimonial-quote.
@@ -469,21 +542,47 @@ Rules:
 - Never use generic words alone (icon, image, frame, vector, rectangle, shape, component). Do not include prefixes or slashes. Do not invent brand names you cannot see — but if a wordmark is legible, use it (owting-logo). If text is visible, prefer names that use it.
 Also classify each item with "kind", choosing the best of: icon, symbol, logo, character, illustration, image, avatar, screen, section, nav, card, list-item, button, badge, input, tagline, copy, shape, debris, abstract. The provided category is a guess from geometry — correct it when the picture says otherwise (a "symbol" that is clearly a mascot is a character; a "illustration" that is a wordmark is a logo; a stray speck is debris).
 - A character is a figure with a face, body or pose (mascot, animal, person). An illustration is a scene or object without a face. A logo is a mark, wordmark or lockup that identifies a brand.
+- Require brand evidence for logos. Width, a box/circle, several vectors, or a symbol next to text are not sufficient. Logos may be standalone marks, wordmarks/logotypes, or horizontal/stacked mark-and-brand-name lockups/signatures. Lettering can be outlined vectors. An owl-eye mark beside readable "owting" is an Owting brand lockup; use visible lettering without inventing brands.
+- Classify the whole object: time/signal/Wi-Fi/battery status bars and pagination dots are nav/UI, not logos. "Continue with Google" is a button; only its extracted Google G is a logo. UI purpose overrides stale logo hints. Generic icons or mascots are not logos without brand evidence; leave uncertain artwork as symbol/icon/illustration or abstract for review.
 - If a shape is too abstract to name honestly, set "kind": "abstract" and "name": "" — the designer will name it. Do not guess.
+- With references, compare distinctive face/eye/beak/body geometry, not color alone. Preserve an established reference name when the character is the same; append a short visible variation such as drinking, waving, eyes-only, green, thin-outline, or playing-guitar. Never assign a pose from geometry scores alone. Different colored characters may be different identities: ask for review if uncertain. A scene containing several characters must keep a scene name, not inherit one character's name. Partial faces are parts (use eyes-only or face-only), not whole-character duplicates.
 - REFERENCES, when provided, are already-named characters and logos from this project. If an item is another view, crop, pose or partial of a reference (its back, its side, a detail), name it <reference-name>-<view>, e.g. owl-mascot-back, and use the same kind.
 Return ONLY a JSON array, no prose, no code fence: [{"i":0,"name":"search","what":"magnifying glass outline","kind":"icon","confidence":0.95}, ...] with one entry per image, in order. Confidence 0-1.`;
 
   async function aiRun() {
     if (!aiItems.length) { aiBusy = false; aiStatus('Nothing to name in the selected categories.'); return; }
     const key = $('#apiKey').value.trim(), model = modelId();
-    const batches = []; for (let i = 0; i < aiItems.length; i += BATCH) batches.push(aiItems.slice(i, i + BATCH));
+    $('#libraryProject').value=$('#project').value.trim()||'default';$('#libraryServer').value=proxyUrl();
+    try{await loadRejections(libraryContext());}catch(e){aiStatus('Cannot load rejected matches. '+e.message,true);aiBusy=false;return;}
+    let savedReferences=[],libraryIssue='';
+    try{savedReferences=await loadLibraryReferences();}catch(e){libraryIssue=' Saved library unavailable: '+e.message;}
+    const localReferences=aiItems.filter(it=>it.referenceName&&it.features);
+    const references=[...localReferences,...savedReferences.filter(r=>!localReferences.some(l=>l.referenceName===r.referenceName))];
+    references.forEach(it=>{it.suggested=it.referenceName;it.kind=it.category;it.confidence=1;it.source='existing name';});
+    const pending=[];
+    for(const it of aiItems.filter(it=>!references.includes(it))) {
+      it.blockedReferenceNames=references.filter(ref=>isRejected(it,ref)).map(ref=>ref.referenceName||ref.suggested||ref.name);
+      const matches=references.filter(ref=>ref.features&&!isRejected(it,ref)).map(ref=>({ref,...window.DSFSimilarity.similarity(it.features||{parts:[],palette:[],stroke:0},ref.features)})).filter(m=>m.candidate).sort((a,b)=>b.score-a.score);
+      it.referenceMatches=matches.slice(0,3);
+      const exact=matches.filter(m=>m.exact);
+      if(exact.length&&new Set(exact.map(m=>m.ref.assetName?.identity||m.ref.referenceName)).size===1) {
+        const ref=exact[0].ref;it.suggested=window.DSFSimilarity.variationName(ref.referenceName,ref.features,it.features);
+        it.assetName=inheritTraits(ref,it);if(it.assetName)it.suggested=window.DSFAssetNames.assetName(it.assetName);
+        it.kind=ref.category;it.confidence=.98;it.source='matching vector geometry';it.what='Same normalized geometry; appearance suffix describes measured differences.';
+      } else pending.push(it);
+    }
+    const batches = []; for (let i = 0; i < pending.length; i += BATCH) batches.push(pending.slice(i, i + BATCH));
     let done = 0, failed = 0;
     aiStatus(`Naming ${aiItems.length} items in ${batches.length} calls…`);
     let cursor = 0;
     async function worker() {
       while (cursor < batches.length) {
         const b = batches[cursor++];
-        try { await aiName(b, key, model); } catch (e) { failed += b.length; b.forEach((it) => (it.error = String(e.message || e))); }
+        try {
+          const ranked=[...new Set(b.flatMap(it=>(it.referenceMatches||[]).map(m=>m.ref)))];
+          const refs=[...ranked,...references.filter(r=>!ranked.includes(r))].slice(0,6);
+          await aiName(b, key, model,refs);
+        } catch (e) { failed += b.length; b.forEach((it) => (it.error = String(e.message || e))); }
         done++; aiStatus(`Named batch ${done}/${batches.length}${failed ? ` · ${failed} failed` : ''}`);
       }
     }
@@ -496,16 +595,17 @@ Return ONLY a JSON array, no prose, no code fence: [{"i":0,"name":"search","what
     aiBusy = false;
     const ok = aiItems.filter((it) => it.suggested).length, todo = aiItems.filter((it) => it.needsName).length;
     aiStatus(ok ? `${ok} names suggested${todo ? ` · ${todo} need your name (listed first)` : ''}. Edit any, untick what to skip, then apply.` : `No names came back. ${aiItems[0] && aiItems[0].error ? aiItems[0].error : ''}`, !ok);
+    if(libraryIssue)aiStatus($('#aiStatus').textContent+libraryIssue,true);
   }
 
-  function contextLine(it, i) { return `#${i} · category: ${it.category} · current name: "${it.name}"${it.desc ? ` · geometry: ${it.desc}` : ''}${it.text ? ` · text: "${it.text.slice(0, 60)}"` : ''} · ${it.w}×${it.h}px`; }
+  function contextLine(it, i) { return `#${i} · category: ${it.category} · current name: "${it.name}"${it.assetName ? ` · identity: ${it.assetName.identity} · appearance: ${JSON.stringify(it.assetName.appearance)}` : ''}${it.desc ? ` · geometry: ${it.desc}` : ''}${it.text ? ` · text: "${it.text.slice(0, 60)}"` : ''} · ${it.w}×${it.h}px${it.referenceMatches?.length ? ' · shape candidates (not confirmed identity): '+it.referenceMatches.map(m=>m.ref.referenceName+' shared vector parts='+m.shared+', overlap='+m.overlap.toFixed(2)+', palette='+m.color.toFixed(2)+', stroke='+m.stroke.toFixed(2)).join('; ') : ''}`; }
   const closing = (n) => `Name and classify all ${n} images (#0 to #${n - 1}). JSON array only.`;
   // provider-neutral message: [{text}|{image}] — references (already-named characters/logos) go first
   function segmentsFor(batch, refs) {
     const seg = [];
     if (refs && refs.length) {
       seg.push({ text: 'REFERENCES — characters and logos already named in this project. Do not name these; use them to recognise other views of the same thing.' });
-      refs.forEach((r, i) => { seg.push({ text: `R${i}: "${r.suggested}" — ${r.what || ''} (${r.kind || ''})` }); seg.push({ image: r.dataUrl }); });
+      refs.forEach((r, i) => { seg.push({ text: `R${i}: "${r.suggested}" — ${r.what || ''} (${r.kind || ''})${r.assetName?' identity='+r.assetName.identity+' appearance='+JSON.stringify(r.assetName.appearance):''}` }); seg.push({ image: r.dataUrl }); });
       seg.push({ text: 'Items to name follow.' });
     }
     batch.forEach((it, i) => { seg.push({ text: contextLine(it, i) }); seg.push({ image: it.dataUrl }); });
@@ -546,10 +646,12 @@ Return ONLY a JSON array, no prose, no code fence: [{"i":0,"name":"search","what
   async function callProxy(batch, key, model, refs) {
     const [up, upModel] = (model === '__custom' ? $('#customModel').value.trim() : model).split(':');
     const body = {
-      provider: up || 'anthropic', model: upModel || null, api_key: key || null,
+      provider: up || 'anthropic', model: upModel || null, api_key: null,
+      excluded_reference_names: [...new Set(batch.flatMap(it=>excludedNames(it)))],
+      use_cache: !(refs && refs.length) && !batch.some(it=>excludedNames(it).length),
       project: $('#project').value.trim() || 'default', critic: $('#p_critic').checked, learn: $('#p_learn').checked,
       items: batch.map((it) => ({ key: it.key, category: it.category, name: it.name, text: it.text || '', desc: it.desc || '', w: it.w, h: it.h, image: it.dataUrl.split(',')[1] })),
-      references: (refs || []).map((r) => ({ name: r.suggested, what: r.what || '', kind: r.kind || r.category, image: r.dataUrl.split(',')[1] })),
+      references: (refs || []).map((r) => ({ name: r.suggested, what: [r.what||'',r.assetName?'Identity: '+r.assetName.identity+'; appearance: '+JSON.stringify(r.assetName.appearance):''].filter(Boolean).join(' · '), kind: r.kind || r.category, image: r.dataUrl.split(',')[1] })),
     };
     const data = await postJson(`${proxyUrl()}/name`, {}, body, 1);
     const byKey = new Map((data.results || []).map((r) => [r.key, r]));
@@ -576,19 +678,26 @@ Return ONLY a JSON array, no prose, no code fence: [{"i":0,"name":"search","what
   }
 
   async function aiName(batch, key, model, refs = []) {
-    if (provider() === 'proxy') { await callProxy(batch, key, model === '__custom' ? '__custom' : model, refs); return; }
+    for(const it of batch)it.blockedReferenceNames=[...new Set([...(it.blockedReferenceNames||[]),...refs.filter(ref=>isRejected(it,ref)).map(ref=>ref.referenceName||ref.suggested||ref.name)])];
+    refs=refs.filter(ref=>!batch.some(it=>isRejected(it,ref))); 
+    for(const it of batch){
+      const existing=it.referenceMatches||[];
+      const extra=refs.filter(ref=>!existing.some(m=>matchReferenceKey(m.ref)===matchReferenceKey(ref))).map(ref=>({ref,...(it.features&&ref.features?window.DSFSimilarity.similarity(it.features,ref.features):{}),visualReference:true}));
+      it.referenceMatches=[...existing,...extra].filter(m=>!isRejected(it,m.ref)).slice(0,3);
+    }
+    if (provider() === 'proxy') { await callProxy(batch, key, model === '__custom' ? '__custom' : model, refs); enforceRejections(batch);return; }
     const segments = segmentsFor(batch, refs);
     const text = provider() === 'gemini' ? await callGemini(segments, key, model) : await callClaude(segments, key, model);
     const m = text.match(/\[[\s\S]*\]/);
     if (!m) throw new Error('Model did not return JSON');
     let arr; try { arr = JSON.parse(m[0]); } catch { throw new Error('Could not parse model JSON'); }
-    applyRows(batch, arr);
+    applyRows(batch, arr);enforceRejections(batch);
   }
 
   // second look: low-confidence characters/illustrations/symbols get another pass with the confidently-named characters and logos as references
   async function reconcileCharacters(key, model) {
-    const refs = aiItems.filter((it) => it.suggested && (it.kind === 'character' || it.kind === 'logo') && (it.confidence || 0) >= 0.8).slice(0, 6);
-    const cands = aiItems.filter((it) => ['character', 'illustration', 'symbol', 'abstract'].includes(it.kind || it.category) && (it.needsName || (it.confidence || 0) < 0.7) && !refs.includes(it));
+    const refs = aiItems.filter((it) => it.suggested && (it.referenceName || it.kind === 'character' || it.kind === 'logo') && (it.confidence || 0) >= 0.8).slice(0, 6);
+    const cands = aiItems.filter((it) => ['character', 'illustration', 'symbol', 'icon', 'abstract'].includes(it.kind || it.category) && (it.needsName || (it.confidence || 0) < 0.7) && !refs.includes(it));
     if (!refs.length || !cands.length) return 0;
     aiStatus(`Second look at ${cands.length} items using ${refs.length} reference character${refs.length === 1 ? '' : 's'}…`);
     let changed = 0;
@@ -605,24 +714,218 @@ Return ONLY a JSON array, no prose, no code fence: [{"i":0,"name":"search","what
     const seen = new Map();
     for (const it of aiItems) {
       if (!it.suggested) continue;
-      const k = `${it.category}|${it.suggested}`; const n = (seen.get(k) || 0) + 1; seen.set(k, n);
+      if(it.referenceName||it.assetName) continue;
+      const k = `${it.kind || it.category}|${it.suggested}`; const n = (seen.get(k) || 0) + 1; seen.set(k, n);
       if (n > 1) it.suggested = `${it.suggested}-${n}`;
     }
   }
 
+  async function reuseIdentification(reference) {
+    if(aiBusy || !reference.suggested || !reference.features)return;
+    // Keep edits and unchecked choices intact when the review is re-rendered.
+    document.querySelectorAll('#aiRows .ai-row').forEach(row=>{const it=aiItems[+row.dataset.i];it.selected=row.querySelector('input[type=checkbox]').checked;});
+    reference.referenceName=reference.suggested;reference.manualName=true;
+    reference.kind=reference.kind || reference.category;reference.source='your identification';reference.confidence=1;
+    const unknown=aiItems.filter(it=>it!==reference&&!it.suggested&&!it.referenceName&&!it.manualName&&it.features);
+    const fuzzy=[];let inherited=0;
+    for(const it of unknown){
+      if(isRejected(it,reference))continue;
+      const match=window.DSFSimilarity.similarity(reference.features,it.features);
+      // Conflicting established names require visual review, even for exact geometry.
+      const conflict=aiItems.some(other=>other!==reference&&other.referenceName&&(other.assetName?.identity||other.referenceName)!==(reference.assetName?.identity||reference.referenceName)&&other.features&&window.DSFSimilarity.similarity(other.features,it.features).exact);
+      if(match.candidate&&!conflict)it.referenceMatches=[{ref:reference,...match}];
+      if(match.exact&&!conflict){
+        it.suggested=window.DSFSimilarity.variationName(reference.referenceName,reference.features,it.features);
+        it.assetName=inheritTraits(reference,it);if(it.assetName)it.suggested=window.DSFAssetNames.assetName(it.assetName);
+        it.kind=reference.kind;it.needsName=false;it.confidence=.98;it.source='learned from your identification';
+        it.what='Matching vector geometry; variation suffix reflects measured appearance.';it.error='';it.selected=true;inherited++;
+      }else if(match.candidate&&!conflict){it.referenceMatches=[{ref:reference,...match}];fuzzy.push(it);}
+    }
+    const batch=fuzzy.sort((a,b)=>b.referenceMatches[0].score-a.referenceMatches[0].score).slice(0,8);
+    let compared=0,issue='';
+    if(batch.length){
+      aiBusy=true;setBusy(true,'Comparing unnamed artwork with your identification…');$('#aiRows').inert=true;
+      try{
+        await aiName(batch,$('#apiKey').value.trim(),modelId(),[reference]);
+        compared=batch.length;
+        for(const it of batch){it.source='compared with your identification';it.selected=false;if(it.suggested)it.needsName=false;}
+      }catch(e){issue=' Visual comparison failed: '+String(e.message||e);}
+      finally{aiBusy=false;$('#aiRows').inert=false;setBusy(false);}
+    }
+    renderAi();
+    aiStatus(`Reused your name for ${inherited} exact matches. ${compared} similar items compared; review and select their suggestions.${fuzzy.length>8?' Additional candidates remain for another naming pass.':''}${issue}`,!!issue);
+  }
+
+  let rejectionRules=[],rejectionContext=null,pendingRejections=[];
+  function isRejected(it,ref){return (it.rejectedMatchKeys||[]).includes(matchReferenceKey(ref))||window.DSFRejections.pair(it,ref,rejectionRules);}
+  function excludedNames(it){const key=window.DSFRejections.key(it);return [...new Set([...(it.blockedReferenceNames||[]),...rejectionRules.flatMap(r=>key&&r.a===key?[r.bName]:key&&r.b===key?[r.aName]:[])])].filter(Boolean);}
+  function enforceRejections(batch){
+    for(const it of batch){const proposed=String(it.suggested||'').toLowerCase();if(proposed&&excludedNames(it).some(n=>{n=n.toLowerCase();return proposed===n||proposed.startsWith(n+'-');})){
+      it.suggested='';it.assetName=null;it.needsName=true;it.selected=false;it.what='Suggested identity conflicts with a saved Different asset decision. Please identify separately.';
+    }}
+  }
+  async function loadRejections(ctx){
+    const rows=await libraryRequest(ctx,'/rejections');
+    rejectionRules=rows.filter(r=>typeof r.a==='string'&&typeof r.b==='string');rejectionContext=ctx;
+    for(const p of pendingRejections)if(JSON.stringify(p.ctx)===JSON.stringify(ctx))rejectionRules.push(p.entry);
+    showRejections();
+  }
+  function showRejections(){
+    $('#rejectionsRows').innerHTML=rejectionRules.filter(r=>r.id).map(r=>`<div class="row" style="margin:6px 0"><span class="hint" style="flex:1">${esc(r.aName||'Artwork')} ≠ ${esc(r.bName||'Reference')}</span><button class="btn small" data-forget-rejection="${esc(r.id)}">Forget</button></div>`).join('');
+    $('#rejectionsStatus').textContent=`${rejectionRules.length} excluded pairs in ${rejectionContext?.project||'this project'}.`;
+    $('#rejectionsRetry').hidden=!pendingRejections.length;
+  }
+  async function rememberRejection(it,ref){
+    const a=window.DSFRejections.key(it),b=window.DSFRejections.key(ref);
+    if(!a||!b){it.matchDecision='Excluded for this review only: no stable image or geometry available.';renderAi();return;}
+    const ctx=rejectionContext||libraryContext(),entry={a,b,aName:it.name||'',bName:ref.referenceName||ref.suggested||ref.name||''};
+    rejectionRules.push(entry);const pending={ctx,entry};pendingRejections.push(pending);showRejections();
+    try{const saved=await libraryRequest(ctx,'/rejections','POST',entry);pendingRejections=pendingRejections.filter(p=>p!==pending);const i=rejectionRules.indexOf(entry);if(i>=0)rejectionRules[i]=saved;it.matchDecision=`Different asset: saved in project ${ctx.project}.`;}
+    catch(e){it.matchDecision='Excluded in this review, but NOT saved. Use Retry saving decisions. '+e.message;}
+    showRejections();renderAi();
+  }
+  $('#rejectionsLoad').onclick=async()=>{try{await loadRejections(libraryContext());}catch(e){$('#rejectionsStatus').textContent=e.message;}};
+  $('#rejectionsRetry').onclick=async()=>{const button=$('#rejectionsRetry');button.disabled=true;try{for(const p of [...pendingRejections]){await libraryRequest(p.ctx,'/rejections','POST',p.entry);pendingRejections=pendingRejections.filter(x=>x!==p);}await loadRejections(rejectionContext||libraryContext());}catch(e){$('#rejectionsStatus').textContent='Some decisions are still unsaved. '+e.message;}finally{button.disabled=false;button.hidden=!pendingRejections.length;}};
+  $('#rejectionsRows').onclick=async e=>{const button=e.target.closest('[data-forget-rejection]');if(!button||!rejectionContext)return;const ctx=rejectionContext,id=button.dataset.forgetRejection;button.disabled=true;
+    try{await libraryRequest(ctx,'/rejections/'+encodeURIComponent(id),'DELETE');await loadRejections(ctx);$('#rejectionsStatus').textContent='Decision removed. Run identification again to reconsider that pair.';}
+    catch(err){$('#rejectionsStatus').textContent=err.message;button.disabled=false;}
+  };
+
+  function matchReferenceKey(ref){return ref.libraryId||JSON.stringify([ref.ids||[],ref.referenceName||ref.suggested||ref.name,ref.features?.geometry]);}
+  function matchEvidence(it,index){
+    const matches=(it.referenceMatches||[]).filter(m=>!isRejected(it,m.ref));
+    if(!matches.length)return it.matchDecision?`<p class="hint" style="grid-column:1/-1">${esc(it.matchDecision)}</p>`:'';
+    return `<details style="grid-column:1/-1;margin:6px 0" ${it.needsName?'open':''}><summary>Why this match? · ${matches.length} reference${matches.length===1?'':'s'}</summary>${it.matchDecision?`<p class="hint">${esc(it.matchDecision)}</p>`:''}${matches.map(m=>{
+      const ref=m.ref,j=it.referenceMatches.indexOf(m),name=ref.referenceName||ref.suggested||ref.name;
+      const facts=[];
+      if(m.exact)facts.push('Complete normalized vector geometry matches.');
+      if(Number.isFinite(m.shared))facts.push(`${m.shared} shared vector parts (${Math.round((m.overlap||0)*100)}% overlap of the larger part inventory).`);
+      if(it.features?.palette?.length&&ref.features?.palette?.length)facts.push(`Exact palette overlap: ${Math.round((m.color||0)*100)}%.`);
+      if(it.features?.stroke&&ref.features?.stroke)facts.push(`Relative stroke thickness similarity: ${Math.round((m.stroke||0)*100)}% (normalized for size).`);
+      if(m.visualReference)facts.push('This reference was supplied for visual comparison; that alone does not confirm a match.');
+      if(!facts.length)facts.push('No measurable vector evidence is available. Review the images.');
+      return `<article data-match="${j}" style="border-top:1px solid var(--line);padding:10px 0"><div style="display:grid;grid-template-columns:1fr 1fr;gap:8px"><div><div class="hint">Reference · ${esc(name)}</div><img src="${esc(ref.dataUrl||'')}" alt="Reference ${esc(name)}" style="width:100%;height:110px;object-fit:contain;background:#bbb"/></div><div><div class="hint">Candidate · ${esc(it.name)}</div><img src="${esc(it.dataUrl||'')}" alt="Candidate ${esc(it.name)}" style="width:100%;height:110px;object-fit:contain;background:#bbb"/></div></div><ul class="hint">${facts.map(f=>`<li>${esc(f)}</li>`).join('')}</ul>${it.what?`<p class="hint">Candidate description from the naming pass: ${esc(it.what)}</p>`:''}<p class="hint">These measurements are supporting evidence, not a probability of identity. Shared parts are not labeled as eyes, wings, or other anatomy.</p><div class="row" style="flex-wrap:wrap"><button class="btn small" data-match-action="same">Same asset</button><button class="btn small" data-match-action="different">Different asset</button></div><div class="row" style="flex-wrap:wrap;margin-top:6px"><select data-match-field aria-label="Variation property">${window.DSFAssetNames.fields.map(k=>`<option value="${k}" ${k==='pose'?'selected':''}>${k}</option>`).join('')}</select><input type="text" data-match-value placeholder="e.g. waving" aria-label="Variation value" maxlength="30" style="width:110px"/><button class="btn small" data-match-action="variation">Variation</button></div><div class="hint" data-match-status></div></article>`;
+    }).join('')}</details>`;
+  }
+  $('#aiRows').addEventListener('click',e=>{
+    const button=e.target.closest('[data-match-action]');if(!button||aiBusy)return;
+    const row=button.closest('.ai-row'),panel=button.closest('[data-match]'),it=aiItems[+row.dataset.i],m=it.referenceMatches[+panel.dataset.match],ref=m.ref;
+    document.querySelectorAll('#aiRows .ai-row').forEach(r=>{aiItems[+r.dataset.i].selected=r.querySelector('input[type=checkbox]').checked;});
+    const key=matchReferenceKey(ref),action=button.dataset.matchAction;
+    if(action==='different'){
+      it.rejectedMatchKeys=[...new Set([...(it.rejectedMatchKeys||[]),key])];
+      // Rejected pair suggestions must not stay selected for an accidental apply.
+      it.selected=false;
+      if(it.acceptedMatchKey===key){it.manualName=false;it.referenceName=undefined;it.acceptedMatchKey=null;}
+      if(!it.manualName){it.suggested='';it.assetName=null;it.needsName=true;}
+      it.matchDecision='Different asset: excluded now; saving this project decision…';
+      rememberRejection(it,ref);
+    }else{
+      if(action==='variation'&&!panel.querySelector('[data-match-value]').value.trim()){panel.querySelector('[data-match-status]').textContent='Enter the variation value, such as pink or waving.';return;}
+      const base=window.DSFAssetNames.normalizeAssetName(ref.assetName)||window.DSFAssetNames.normalizeAssetName({identity:ref.referenceName||ref.suggested||ref.name,appearance:{}});
+      if(!base)return;
+      const appearance=action==='same'?{...base.appearance}:{...(it.assetName?.appearance||{})};
+      if(action==='variation')appearance[panel.querySelector('[data-match-field]').value]=panel.querySelector('[data-match-value]').value;
+      it.assetName=window.DSFAssetNames.normalizeAssetName({identity:base.identity,appearance});
+      it.suggested=window.DSFAssetNames.assetName(it.assetName);it.kind=ref.kind||ref.category;it.selected=true;it.needsName=false;it.manualName=true;it.referenceName=it.suggested;
+      it.acceptedMatchKey=key;it.source='your match decision';it.matchDecision=action==='same'?'Confirmed as the same asset and appearance.':'Confirmed as a variation; edit Identity & appearance to add more properties.';
+    }
+    renderAi();
+  });
+
+  function traitFields(value){
+    const v=value||{identity:'',appearance:{}};
+    return `<details class="hint" data-identity-details><summary>Identity &amp; appearance</summary><div style="display:grid;grid-template-columns:1fr 1fr;gap:5px;margin:6px 0">${['identity',...window.DSFAssetNames.fields].map(k=>`<label>${esc(k)}<input type="text" data-trait="${k}" aria-label="${esc(k)}" value="${esc(k==='identity'?v.identity:v.appearance?.[k]||'')}" maxlength="${k==='identity'?40:30}" style="width:100%"/></label>`).join('')}</div></details>`;
+  }
+  function readTraits(root){const raw={identity:root.querySelector('[data-trait="identity"]')?.value||'',appearance:{}};for(const k of window.DSFAssetNames.fields)raw.appearance[k]=root.querySelector(`[data-trait="${k}"]`)?.value||'';return window.DSFAssetNames.normalizeAssetName(raw);}
+  function inheritTraits(ref,it){
+    const v=window.DSFAssetNames.normalizeAssetName(ref.assetName);if(!v)return null;
+    if(JSON.stringify(ref.features.palette)!==JSON.stringify(it.features.palette))v.appearance.color='recolored';
+    if(ref.features.stroke&&it.features.stroke){const ratio=it.features.stroke/ref.features.stroke;if(ratio>1.2)v.appearance.treatment='thick-outline';else if(ratio<.8)v.appearance.treatment='thin-outline';}
+    return v;
+  }
+  $('#sheetTraits').addEventListener('input',()=>{const v=readTraits($('#sheetTraits'));if(v)$('#sheetName').value=window.DSFAssetNames.assetName(v);});
+  $('#sheetName').addEventListener('input',()=>{$('#sheetTraits').querySelectorAll('[data-trait]').forEach(el=>el.value='');});
+  $('#libraryRows').addEventListener('input',e=>{if(e.target.hasAttribute('data-ref-name')){e.target.closest('[data-ref-id]').querySelectorAll('[data-trait]').forEach(el=>el.value='');return;}if(!e.target.hasAttribute('data-trait'))return;const row=e.target.closest('[data-ref-id]'),v=readTraits(row);if(v)row.querySelector('[data-ref-name]').value=window.DSFAssetNames.assetName(v);});
+
   function renderAi() {
     $('#aiRows').innerHTML = aiItems.map((it, i) => `<div class="ai-row" data-i="${i}" ${it.needsName ? 'style="background:var(--bg2);margin:0 -16px;padding:5px 16px"' : ''}>
-      <input type="checkbox" ${it.suggested ? 'checked' : ''} ${it.suggested || it.needsName ? '' : 'disabled'} />
+      <input type="checkbox" ${(it.selected !== undefined ? it.selected : it.suggested && (!it.referenceName || it.manualName)) ? 'checked' : ''} ${it.suggested || it.needsName ? '' : 'disabled'} />
       <img src="${it.dataUrl}" alt="" />
       <div>
         <input type="text" value="${esc(it.suggested || '')}" placeholder="${it.needsName ? 'Too abstract for the model — name it' : it.error ? esc(it.error) : 'no suggestion'}" ${it.suggested || it.needsName ? '' : 'disabled'} ${it.needsName ? 'style="border-color:var(--line)"' : ''} />
-        <div class="old"><b>${esc(it.kind && it.kind !== it.category ? `${it.category} → ${it.kind}` : it.category)}</b>${it.source ? ` · ${esc(it.source)}` : ''}${typeof it.confidence === 'number' ? ` · ${Math.round(it.confidence * 100)}%` : ''} · was "${esc(it.name)}"${it.ids.length > 1 ? ` · ${it.ids.length} layers` : ''}${it.what ? ` · ${esc(it.what)}` : ''}</div>
+        ${traitFields(it.assetName)}
+        <div class="old"><b>${esc(it.kind && it.kind !== it.category ? `${it.category} → ${it.kind}` : it.category)}</b>${it.source ? ` · ${esc(it.source)}` : ''}${typeof it.confidence === 'number' ? ` · ${Math.round(it.confidence * 100)}%` : ''} · was "${esc(it.name)}"${it.ids.length > 1 ? ` · ${it.ids.length} layers` : ''}${it.what ? ` · ${esc(it.what)}` : ''}${it.error ? ` · Error: ${esc(it.error)}` : ''}</div>
       </div>
+      ${matchEvidence(it,i)}
     </div>`).join('');
-    $('#aiApply').hidden = false; $('#aiAll').hidden = false;
+    $('#aiApply').hidden = false; $('#aiBuild').hidden = false; $('#aiAll').hidden = false;
     updateApplyCount();
     $('#aiSec').scrollIntoView({ behavior: 'smooth', block: 'start' });
   }
+
+  let sheetReferenceContext=null;
+  $('#sheetSaveReference').onclick=()=>{if(!sheetCellId)return;sheetReferenceContext=libraryContext();setBusy(true,'Preparing approved reference…');send({type:'sheet_reference',cellId:sheetCellId,name:$('#sheetName').value,assetName:readTraits($('#sheetTraits'))});};
+  async function saveSheetReference(entry){
+    try{const ctx=sheetReferenceContext;if(!ctx)throw Error('Select the item again.');await libraryRequest(ctx,'','POST',entry);setBusy(false,`Saved ${entry.name} to ${ctx.project}.`);if(JSON.stringify(ctx)===JSON.stringify(libraryContext()))await loadLibraryReferences();}
+    catch(e){setBusy(false);$('#libraryStatus').textContent=e.message;}finally{sheetReferenceContext=null;}
+  }
+  let logoInspection=null,logoSaveContext=null;
+  $('#logoInspect').onclick=()=>{$('#logoInspect').disabled=true;$('#logoFields').hidden=true;logoInspection=null;$('#logoStatus').textContent='Inspecting original artwork…';send({type:'logo_inspect'});};
+  function logoOverlays(){
+    if(!logoInspection)return;
+    const host=$('#logoPreview');host.querySelectorAll('[data-logo-box]').forEach(n=>n.remove());
+    for(const r of logoInspection.regions){const color=r.role==='signature'?'#8a38ae':r.role==='symbol'?'#087caa':'#666';const box=document.createElement('div');box.dataset.logoBox=r.id;Object.assign(box.style,{position:'absolute',left:(r.x*100)+'%',top:(r.y*100)+'%',width:(r.width*100)+'%',height:(r.height*100)+'%',border:'2px solid '+color,boxSizing:'border-box',pointerEvents:'none'});box.title=r.role;const label=document.createElement('span');label.textContent=(logoInspection.regions.indexOf(r)+1)+' '+r.role;Object.assign(label.style,{background:color,color:'white',fontSize:'10px',position:'absolute',top:'0',left:'0'});box.append(label);host.append(box);}
+  }
+  function showLogoComposition(data){
+    logoInspection=data;$('#logoInspect').disabled=false;$('#logoFields').hidden=false;$('#logoName').value=data.name||'';
+    $('#logoPreview').innerHTML='<img alt="Selected artwork with proposed composition regions" src="data:image/png;base64,'+esc(data.image)+'" style="width:100%;display:block" />';
+    $('#logoRegions').innerHTML=data.regions.map((r,i)=>`<div data-logo-region="${esc(r.id)}" style="border-top:1px solid var(--line);padding:8px 0"><div>${i+1}. ${esc(r.name)}</div><select data-logo-role aria-label="Region ${i+1} role">${['unknown','symbol','signature','ignore'].map(v=>`<option ${r.role===v?'selected':''} value="${v}">${v==='symbol'?'Symbol / logotype':v==='signature'?'Text / signature':v}</option>`).join('')}</select><input data-logo-text aria-label="Region ${i+1} lettering" placeholder="Transcribe outlined lettering if needed" value="${esc(r.text)}" /></div>`).join('');
+    $('#logoStatus').textContent='Proposed regions only. Assign every region; use Ignore for backgrounds. Purple = signature, blue = symbol. Boxes are axis-aligned, including rotated artwork.';logoOverlays();
+  }
+  $('#logoRegions').onchange=e=>{const row=e.target.closest('[data-logo-region]');if(!row||!logoInspection)return;const r=logoInspection.regions.find(r=>r.id===row.dataset.logoRegion);r.role=row.querySelector('[data-logo-role]').value;r.text=row.querySelector('[data-logo-text]').value;logoOverlays();};
+  $('#logoSave').onclick=()=>{if(!logoInspection)return;$('#logoRegions').querySelectorAll('[data-logo-region]').forEach(row=>{const r=logoInspection.regions.find(r=>r.id===row.dataset.logoRegion);r.role=row.querySelector('[data-logo-role]').value;r.text=row.querySelector('[data-logo-text]').value;});if(logoInspection.regions.some(r=>r.role==='unknown')){$('#logoStatus').textContent='Assign every region a role or Ignore first.';return;}logoSaveContext=libraryContext();$('#logoSave').disabled=true;send({type:'logo_save',...logoInspection,name:$('#logoName').value});};
+  async function persistLogoReference(entry){try{const ctx=logoSaveContext;if(!ctx)throw Error('Inspect the logo again.');await libraryRequest(ctx,'','POST',entry);$('#logoStatus').textContent='Composition saved; approved logo reference saved in '+ctx.project+'.';if(JSON.stringify(ctx)===JSON.stringify(libraryContext()))await loadLibraryReferences();}catch(e){$('#logoStatus').textContent='Composition saved on source, but library save failed: '+e.message+' Retry Save to persist the reference.';}finally{$('#logoSave').disabled=false;logoSaveContext=null;}}
+  function compositionContext(c){return c?'Reviewed logo composition: '+c.arrangement+'; regions: '+c.regions.filter(r=>r.role!=='ignore').map(r=>r.role+(r.text?' lettering '+r.text:'')+' bounds '+[r.x,r.y,r.width,r.height].map(v=>Number(v).toFixed(2)).join(',')).join('; '):'';}
+  function libraryContext(){return {server:$('#libraryServer').value.trim().replace(/\/+$/,''),project:$('#libraryProject').value.trim()||'default'};}
+  async function libraryRequest(ctx,path='',method='GET',body){
+    const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),15000);
+    try{
+      const r=await fetch(`${ctx.server}/library/${encodeURIComponent(ctx.project)}${path}`,{method,headers:{'content-type':'application/json'},body:body?JSON.stringify(body):undefined,signal:controller.signal});
+      if(!r.ok)throw Error(r.status===404?'Restart the updated server to enable the library.':`Library request failed (${r.status})`);
+      return await r.json();
+    }finally{clearTimeout(timer);}
+  }
+  function showLibrary(rows){
+    $('#libraryRows').innerHTML=rows.map(r=>`<div class="row" data-ref-id="${esc(r.id)}" style="padding:8px 0;border-top:1px solid var(--line)"><img src="data:image/png;base64,${esc(r.image)}" alt="${esc(r.name)}" style="width:56px;height:56px;object-fit:contain;background:#bbb"/><div style="flex:1;min-width:0"><input data-ref-name value="${esc(r.name)}" aria-label="Reference name" style="width:100%"/><div class="hint">${esc(r.kind)}${r.composition?' · '+esc(r.composition.arrangement)+' · '+r.composition.regions.length+' reviewed regions':''}</div>${traitFields(r.assetName)}<button class="btn small" data-ref-rename>Save changes</button><button class="btn small" data-ref-delete>Delete</button></div></div>`).join('');
+  }
+  let displayedLibraryContext=null;
+  async function loadLibraryReferences(){
+    const ctx=libraryContext(),rows=await libraryRequest(ctx);
+    if(JSON.stringify(ctx)===JSON.stringify(libraryContext())){showLibrary(rows);displayedLibraryContext=ctx;$('#libraryStatus').textContent=`${rows.length} approved references in ${ctx.project}.`;}
+    return rows.map(r=>({libraryId:r.id,referenceName:r.name,suggested:r.name,category:r.kind,kind:r.kind,what:[r.what,compositionContext(r.composition)].filter(Boolean).join(' · '),composition:r.composition,features:r.features,assetName:r.assetName,dataUrl:'data:image/png;base64,'+r.image,confidence:1,source:'saved reference'}));
+  }
+  $('#libraryLoad').onclick=async()=>{try{await loadLibraryReferences();}catch(e){$('#libraryStatus').textContent=e.message;}};
+  $('#libraryProject').onchange=()=>{$('#project').value=$('#libraryProject').value;$('#libraryRows').replaceChildren();displayedLibraryContext=null;};
+  $('#libraryServer').onchange=()=>{$('#proxyUrl').value=$('#libraryServer').value;$('#libraryRows').replaceChildren();displayedLibraryContext=null;};
+  $('#project').addEventListener('change',()=>{$('#libraryProject').value=$('#project').value;$('#libraryRows').replaceChildren();displayedLibraryContext=null;});
+  $('#proxyUrl').addEventListener('change',()=>{$('#libraryServer').value=proxyUrl();$('#libraryRows').replaceChildren();displayedLibraryContext=null;});
+  $('#librarySave').onclick=async()=>{
+    const entries=[];
+    document.querySelectorAll('#aiRows .ai-row').forEach(row=>{if(!row.querySelector('input[type=checkbox]').checked)return;const it=aiItems[+row.dataset.i],name=row.querySelector('input[type=text]').value.trim();if(name&&it.dataUrl)entries.push({name,kind:it.kind||it.category,what:it.what||'',image:it.dataUrl.split(',')[1],features:it.features,assetName:it.assetName});});
+    if(!entries.length){$('#libraryStatus').textContent='Select named items in the identification review first.';return;}
+    const ctx=libraryContext();let saved=0;$('#librarySave').disabled=true;
+    try{for(const entry of entries){await libraryRequest(ctx,'','POST',entry);saved++;}$('#libraryStatus').textContent=`Saved ${saved} approved references in ${ctx.project}.`;if(JSON.stringify(ctx)===JSON.stringify(libraryContext()))await loadLibraryReferences();}
+    catch(e){$('#libraryStatus').textContent=`Saved ${saved}/${entries.length}. ${e.message}`;}finally{$('#librarySave').disabled=false;}
+  };
+  $('#libraryRows').onclick=async e=>{
+    const row=e.target.closest('[data-ref-id]'),ctx=displayedLibraryContext;if(!row||!ctx)return;
+    const rename=e.target.hasAttribute('data-ref-rename'),remove=e.target.hasAttribute('data-ref-delete');if(!rename&&!remove)return;
+    const name=row.querySelector('[data-ref-name]').value.trim();if(rename&&!name)return;
+    row.inert=true;
+    try{await libraryRequest(ctx,'/'+encodeURIComponent(row.dataset.refId),remove?'DELETE':'PATCH',rename?{name,assetName:readTraits(row)}:undefined);if(JSON.stringify(ctx)===JSON.stringify(libraryContext()))await loadLibraryReferences();}
+    catch(err){$('#libraryStatus').textContent=err.message;row.inert=false;}
+  };
 
   // ---------- tiny store-only zip writer ----------
   const CRC = (() => { const t = new Uint32Array(256); for (let n = 0; n < 256; n++) { let c = n; for (let k = 0; k < 8; k++) c = c & 1 ? 0xEDB88320 ^ (c >>> 1) : c >>> 1; t[n] = c >>> 0; } return t; })();
@@ -643,3 +946,5 @@ Return ONLY a JSON array, no prose, no code fence: [{"i":0,"name":"search","what
     return new Blob([...parts, ...central, end], { type: 'application/zip' });
   }
 </script>
+
+<!-- CANONICAL_SCRIPT -->

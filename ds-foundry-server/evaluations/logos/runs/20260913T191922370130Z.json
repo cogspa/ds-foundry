@@ -1,0 +1,58 @@
+{
+  "timestamp": "2026-09-13T19:19:22.369598+00:00",
+  "provider": "gemini",
+  "model": "gemini-3.7-flash",
+  "scope": "Two screenshot smoke cases, not a general logo accuracy benchmark. Whole-sheet negative does not score each UI item independently. Owting is a known example in the prompt.",
+  "cases": [
+    {
+      "id": "owting-lockup",
+      "expected_logo": true,
+      "correct": true,
+      "prediction": {
+        "key": "owting-lockup",
+        "name": "owting-logo",
+        "what": "owting brand lockup with owl face mark and wordmark",
+        "kind": "logo",
+        "confidence": 0.98,
+        "source": "model",
+        "note": ""
+      },
+      "usage": {
+        "calls": 2,
+        "cached": 0,
+        "glossary_hits": 0,
+        "critic_changes": 0,
+        "reference_matches": 0,
+        "abstract": 0,
+        "rounds": 1
+      }
+    },
+    {
+      "id": "ui-contact-sheet",
+      "expected_logo": false,
+      "correct": true,
+      "prediction": {
+        "key": "ui-contact-sheet",
+        "name": "ios-status-bar",
+        "what": "iOS status bar with time 9:41, cellular, Wi-Fi, and battery icons",
+        "kind": "nav",
+        "confidence": 0.98,
+        "source": "model",
+        "note": ""
+      },
+      "usage": {
+        "calls": 2,
+        "cached": 0,
+        "glossary_hits": 0,
+        "critic_changes": 0,
+        "reference_matches": 0,
+        "abstract": 0,
+        "rounds": 1
+      }
+    }
+  ],
+  "correct": 2,
+  "total": 2,
+  "dataset_sha256": "ec6f283b4468efe23fdbe15424814680e8964cab8e20e9fd06a6f28499feb779",
+  "code_sha256": "1b35ace261e938a9cfddace29be64fb056b50caba3f1de31f46283e2e46a7e5f"
+}

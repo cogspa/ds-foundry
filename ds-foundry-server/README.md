@@ -1,4 +1,4 @@
-# DS Foundry naming server 0.2.0
+# DS Foundry naming server 0.3.0
 
 A small FastAPI + LangGraph service that the DS Foundry Figma plugin (v1.3.0+) can use instead of calling Claude or Gemini directly. It turns "name this thumbnail" into a pipeline:
 
@@ -54,3 +54,14 @@ Items: `{key, category, name, desc, text, w, h, image}` where `image` is base64 
 - The critic sees text only (proposals, descriptions, context), not images — it's cheap. If you want it to look, pass the images in `critique()` the same way `propose()` does.
 - Gemini and Ollama image input uses the standard `image_url` data-URL content block, which `langchain-google-genai` and `langchain-ollama` both accept.
 - Ollama needs a vision model (`ollama pull llama3.2-vision`) and `pip install langchain-ollama`.
+
+## Canonical Asset Resolution
+
+Canonical families now separate identity from color, orientation, treatment and lockup. Scan → optional AI names → **Canonical Assets / Resolve assets** → review and confirm → **Apply approved** → export `asset-map.json`. Project references remember approved identities across files. Layout metadata is retained for future work; no recomposition solver is included.
+
+See [workflow, API, architecture, limits and tests](../CANONICAL_ASSETS.md). Existing naming and build behavior remains available.
+
+Approved library endpoints: `GET/POST /library/{project}`, `PATCH/DELETE /library/{project}/{id}`. POST accepts name, kind, what, base64 PNG image, and optional geometry features; PATCH changes the name. No model calls. Transactional SQLite storage uses `DSF_DATA_DIR/approved-references.sqlite3` and exact project names. Maximum 64 references per project; saving an existing name/kind replaces that example. Automatically learned references and canonical families remain separate.
+# Real artwork regression checks
+
+Run `sh tools/check-artwork.sh` after changes to run plugin/server checks and compare live Gemini naming against the saved artwork baseline. Uses the server `.env`; normal API usage applies. See `evaluations/artwork/README.md` and `gallery.html` for labels, metrics, and current logo/debris/geometry coverage gaps.

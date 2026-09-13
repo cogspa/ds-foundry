@@ -47,7 +47,7 @@ Heuristics categorize layers by geometry, but AI visual naming inspects thumbnai
 * **Provider Flexibility**: Supports Claude (Anthropic), Gemini (Google AI), or local Ollama vision models.
 
 ### 3. Safe & Non-Destructive
-* **Build confirmation**: Nothing in the Figma document changes until you click **Build design system**.
+* **Explicit application**: Scan and canonical resolution are read-only. Build, Apply names and Apply approved are separate write actions.
 * **Reversible**: Original layer names are preserved in plugin data; clicking **Revert labels** restores them at any point.
 
 ---
@@ -112,3 +112,9 @@ pytest -q tests  # Run tests against injected mock chat models
 ## License
 
 MIT License. See individual package documentation for further details.
+
+## Canonical Asset Resolution
+
+Canonical families now separate identity from color, orientation, treatment and lockup. Scan → optional AI names → **Canonical Assets / Resolve assets** → review and confirm → **Apply approved** → export `asset-map.json`. Project references remember approved identities across files. Layout metadata is retained for future work; no recomposition solver is included.
+
+See [workflow, API, architecture, limits and tests](CANONICAL_ASSETS.md). Existing naming and build behavior remains available.

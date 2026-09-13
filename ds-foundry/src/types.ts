@@ -64,6 +64,11 @@ export interface EffectToken {
 export interface ElementRec {
   id: string;
   category: Category;
+  assetName?: import('./asset-names').AssetName | null;
+  artworkRole?: 'whole' | 'part';
+  partOf?: string;
+  nodeType?: string;
+  semanticName?: string;
   name: string;         // original name
   text: string;         // primary text content (if any)
   w: number;
@@ -75,12 +80,16 @@ export interface ElementRec {
   textRole: string;     // for text nodes: heading/lg/bold
   desc: string;         // deterministic description for shapes/vectors (e.g. navy-outline-blob-56x30)
   page: string;
+  identity?: import('./asset-types').IdentityFeatures;
+  layout?: import('./asset-types').LayoutMetadata;
 }
 
 export interface ComponentRef { id: string; name: string; remote: boolean; count: number; }
 
 export interface Inventory {
   scope: Scope;
+  artworkParts?: {nodeId:string;ownerId:string;name:string;nodeType:string;layout?:import('./asset-types').LayoutMetadata}[];
+  assetMap?: import('./asset-types').AssetMap;
   pages: string[];
   pageIds: string[];
   nodeCount: number;

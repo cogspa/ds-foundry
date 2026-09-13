@@ -1,3 +1,6 @@
+import {inspectSheetSelection,identifySheetSelection,exportSheetReference} from './sheet-identify';
+import {inspectLogo,saveLogo} from './logo-composition';
+import { refreshIdentifications } from './contact-sheet';
 import { Inventory, InventorySummary, BuildOptions, Scope } from './types';
 import { scan } from './scan';
 import { build, revertLabels } from './build';
@@ -5,10 +8,14 @@ import { elementLabel } from './naming';
 import { post, setCancelled, rgbaCss, round } from './util';
 import { prepareAiItems, applyAiNames, getApiKeys, setApiKey } from './ai';
 
+import { prepareAssets, applyAssets, invalidateAssets } from './assets';
+
 figma.showUI(__html__, { width: 440, height: 680, themeColors: true });
 
 let inventory: Inventory | null = null;
 let busy = false;
+async function reportSheetSelection(){try{post({type:'sheet_selection',...await inspectSheetSelection()});}catch{post({type:'sheet_selection',cellId:null});}}
+figma.on('selectionchange',()=>{if(!busy)void reportSheetSelection();});
 
 function summarize(inv: Inventory, prefix: string): InventorySummary {
   const elements: InventorySummary['elements'] = {};
@@ -43,6 +50,10 @@ function summarize(inv: Inventory, prefix: string): InventorySummary {
 
 figma.ui.onmessage = async (msg: { type: string; [k: string]: any }) => {
   try {
+    if(msg.type==='logo_inspect'||msg.type==='logo_save'){if(busy)return;busy=true;try{post(msg.type==='logo_inspect'?{type:'logo_inspected',data:await inspectLogo()}:{type:'logo_saved',entry:await saveLogo(msg)});}catch(e){post({type:'logo_error',msg:String(e)});}finally{busy=false;}return;}
+    if(msg.type==='sheet_reference'){if(busy)return;busy=true;try{post({type:'sheet_reference_ready',entry:await exportSheetReference(msg.cellId,msg.name,msg.assetName)});}finally{busy=false;}return;}
+    if(msg.type==='sheet_inspect'){await reportSheetSelection();return;}
+    if(msg.type==='sheet_identify'){if(busy)return;busy=true;try{const result=await identifySheetSelection(msg.cellId,msg.name,!!msg.match,msg.assetName);if(inventory)await refreshIdentifications(inventory);post({type:'sheet_identified',...result});}finally{busy=false;}return;}
     if (msg.type === 'cancel') { setCancelled(true); return; }
 
     if (msg.type === 'scan') {
@@ -54,8 +65,9 @@ figma.ui.onmessage = async (msg: { type: string; [k: string]: any }) => {
         busy = false; return;
       }
       post({ type: 'progress', pct: 2, msg: 'Loading pages…' });
+      invalidateAssets();
       inventory = await scan(scope, msg.baseGrid || 4);
-      post({ type: 'scanned', summary: summarize(inventory, msg.prefix || 'ds/') });
+      post({ type: 'scanned', newScan: true, summary: summarize(inventory, msg.prefix || 'ds/') });
       busy = false; return;
     }
 
@@ -84,6 +96,21 @@ figma.ui.onmessage = async (msg: { type: string; [k: string]: any }) => {
       busy = false; return;
     }
 
+    if (msg.type === 'assets_prepare') {
+      if (busy) return;
+      if (!inventory) throw new Error('Scan first');
+      busy=true; setCancelled(false);
+      await prepareAssets(inventory,msg.project || 'default',msg.semantic || []);
+      busy=false; return;
+    }
+    if (msg.type === 'assets_apply') {
+      if (busy) return;
+      if (!inventory) throw new Error('Scan first');
+      busy=true; setCancelled(false);
+      await applyAssets(inventory,msg.map,msg.project || 'default');
+      busy=false; return;
+    }
+
     if (msg.type === 'ai_key_get') { post({ type: 'ai_keys', keys: await getApiKeys() }); return; }
     if (msg.type === 'ai_key_set') { await setApiKey(msg.provider, msg.key || ''); return; }
 
@@ -99,6 +126,7 @@ figma.ui.onmessage = async (msg: { type: string; [k: string]: any }) => {
       if (busy) return;
       busy = true; setCancelled(false);
       const n = await applyAiNames(msg.renames || [], msg.prefix || 'ds/', !!msg.usePrefix);
+      if (inventory) await refreshIdentifications(inventory);
       post({ type: 'ai_applied', count: n });
       figma.notify(`Renamed ${n} layers`);
       busy = false; return;

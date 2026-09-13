@@ -1,3 +1,5 @@
+import {linkSheetCell} from './sheet-identify';
+import { refreshIdentifications, appearanceKey, sheetName } from './contact-sheet';
 import { Inventory, BuildOptions, BuildResult, ElementRec, ColorToken, Category } from './types';
 import { elementLabel } from './naming';
 import { PD_ORIGINAL, PD_CATEGORY, PD_GENERATED, progress, tick, cancelled, slug, rgbaCss, round } from './util';
@@ -130,8 +132,8 @@ export async function applyLabels(inv: Inventory, opts: BuildOptions): Promise<n
     if (!node) continue;
     try {
       if (!node.getPluginData(PD_ORIGINAL)) node.setPluginData(PD_ORIGINAL, node.name);
-      node.setPluginData(PD_CATEGORY, rec.category);
-      if (opts.rename && !node.name.startsWith(opts.prefix)) node.name = elementLabel(rec, opts.prefix);
+      if (!node.getPluginData(PD_CATEGORY)) node.setPluginData(PD_CATEGORY, rec.category);
+      if (opts.rename && !node.getPluginData('dsf.semanticName') && !node.name.startsWith(opts.prefix)) node.name = elementLabel(rec, opts.prefix);
       n++;
     } catch { /* locked or read-only */ }
     if (i % 200 === 0) { progress(5 + (i / all.length) * 10, `Labelling layers… ${i}/${all.length}`); await tick(); }
@@ -149,6 +151,8 @@ export async function revertLabels(): Promise<number> {
         node.name = node.getPluginData(PD_ORIGINAL);
         node.setPluginData(PD_ORIGINAL, '');
         node.setPluginData(PD_CATEGORY, '');
+        node.setPluginData('dsf.semanticName', '');
+        node.setPluginData('dsf.assetName', '');
         n++;
       } catch { /* ignore */ }
     }
@@ -411,8 +415,8 @@ export async function buildComponents(inv: Inventory, opts: BuildOptions, notes:
     const seen = new Set<string>();
     const picks: ElementRec[] = [];
     for (const r of pool) {
-      if (seen.has(r.fingerprint)) continue;
-      seen.add(r.fingerprint);
+      if (seen.has(appearanceKey(r))) continue;
+      seen.add(appearanceKey(r));
       picks.push(r);
       if (picks.length >= (COMPONENT_LIMIT[cat] || 6)) break;
     }
@@ -433,7 +437,7 @@ export async function buildComponents(inv: Inventory, opts: BuildOptions, notes:
       try {
         stage.appendChild(clone);
         unlockSizing(clone);
-        const comp = figma.createComponentFromNode(clone);
+        const comp = clone.type === 'COMPONENT' ? clone : figma.createComponentFromNode(clone);
         comp.name = names[i];
         comp.description = `From "${picks[i].name}" on page "${picks[i].page}"${picks[i].text ? ` — "${picks[i].text}"` : ''}`;
         comp.setPluginData(PD_GENERATED, '1');
@@ -504,8 +508,8 @@ export async function buildIcons(inv: Inventory, opts: BuildOptions, notes: stri
   const seen = new Set<string>();
   const picks: ElementRec[] = [];
   for (const r of inv.icons) {
-    if (r.inInstance || seen.has(r.fingerprint)) continue;
-    seen.add(r.fingerprint);
+    if (r.inInstance || r.artworkRole==='part' || seen.has(appearanceKey(r))) continue;
+    seen.add(appearanceKey(r));
     picks.push(r);
     if (picks.length >= 240) break;
   }
@@ -525,7 +529,7 @@ export async function buildIcons(inv: Inventory, opts: BuildOptions, notes: stri
     try { clone = src.clone(); } catch { continue; }
     try {
       const size = Math.max(16, Math.ceil(Math.max(clone.width, clone.height) / 4) * 4);
-      const cell = mkFrame(rec.name, { dir: 'V', gap: 6, align: 'CENTER' });
+      const cell = mkFrame(rec.name, { dir:'V', pad:12, gap:6, align:'CENTER', fill:{r:0.82,g:0.82,b:0.82} });
       grid.appendChild(cell);
       const box = figma.createFrame();
       box.resize(size, size);
@@ -537,14 +541,15 @@ export async function buildIcons(inv: Inventory, opts: BuildOptions, notes: stri
       clone.x = (size - clone.width) / 2;
       clone.y = (size - clone.height) / 2;
       const comp = figma.createComponentFromNode(box);
-      let name = `${opts.prefix}icon/${slug(rec.name)}`;
+      let name = `${opts.prefix}icon/${slug(sheetName(rec, opts.prefix))}`;
       let n = 2;
-      while (usedNames.has(name)) name = `${opts.prefix}icon/${slug(rec.name)}-${n++}`;
+      while (usedNames.has(name)) name = `${opts.prefix}icon/${slug(sheetName(rec, opts.prefix))}-${n++}`;
       usedNames.add(name);
       comp.name = name;
       comp.description = `${size}×${size} · from page "${rec.page}"`;
       comp.setPluginData(PD_GENERATED, '1');
-      cell.appendChild(await mkText(slug(rec.name).slice(0, 18), { size: 9, color: MUTED }));
+      const caption=await mkText(sheetName(rec, opts.prefix), { size: 9, color: MUTED }); cell.appendChild(caption);
+      linkSheetCell(cell,inv.icons.filter(r=>appearanceKey(r)===appearanceKey(rec)).map(r=>r.id),caption,rec.category,opts.prefix);
       count++;
     } catch {
       try { clone.remove(); } catch { /* ignore */ }
@@ -559,16 +564,17 @@ export async function buildIcons(inv: Inventory, opts: BuildOptions, notes: stri
 // ---------------------------------------------------------------- assets contact sheet
 
 const ASSET_SECTIONS: { key: string; title: string; cats: Category[]; cap: number; kind: 'vector' | 'text' | 'list' }[] = [
+  { key: 'parts', title: 'Artwork parts', cats: [], cap: 120, kind: 'vector' },
   { key: 'logos', title: 'Logos', cats: ['logo'], cap: 40, kind: 'vector' },
   { key: 'characters', title: 'Characters', cats: ['character'], cap: 60, kind: 'vector' },
   { key: 'illustrations', title: 'Illustrations', cats: ['illustration'], cap: 60, kind: 'vector' },
   { key: 'symbols', title: 'Symbols & ornaments', cats: ['symbol'], cap: 80, kind: 'vector' },
   { key: 'icons', title: 'Icons', cats: ['icon'], cap: 240, kind: 'vector' },
-  { key: 'buttons', title: 'Buttons & badges', cats: ['button', 'badge'], cap: 40, kind: 'vector' },
+  { key: 'components', title: 'Components', cats: ['button', 'badge', 'input', 'checkbox', 'toggle', 'card', 'list-item', 'nav', 'other'], cap: 120, kind: 'vector' },
   { key: 'taglines', title: 'Taglines', cats: ['tagline'], cap: 80, kind: 'text' },
   { key: 'copy', title: 'Copy', cats: ['copy'], cap: 40, kind: 'text' },
   { key: 'vectors', title: 'Vectors & shapes', cats: ['shape'], cap: 120, kind: 'vector' },
-  { key: 'debris', title: 'Debris', cats: ['debris'], cap: 300, kind: 'list' },
+  { key: 'debris', title: 'Possible vector debris', cats: ['debris'], cap: 300, kind: 'vector' },
 ];
 
 function stripPrefix(name: string, prefix: string): string {
@@ -579,7 +585,7 @@ export async function buildAssets(inv: Inventory, opts: BuildOptions, notes: str
   const page = await getOrCreatePage('DS · Assets');
   const cursor = { y: 0 };
   let count = 0;
-  const pool: ElementRec[] = [...inv.elements, ...inv.icons, ...inv.shapes].filter((r) => !r.inInstance);
+  const pool: ElementRec[] = [...inv.elements, ...inv.icons, ...inv.shapes].filter((r) => !r.inInstance || r.nodeType === 'INSTANCE');
 
   // the category a node has *now*: AI naming may have reclassified it (plugin data wins over the heuristic)
   const resolved: { rec: ElementRec; node: SceneNode; cat: Category }[] = [];
@@ -588,16 +594,15 @@ export async function buildAssets(inv: Inventory, opts: BuildOptions, notes: str
     const rec = pool[i];
     const node = await nodeById(rec.id);
     if (!node) continue;
-    const pd = node.getPluginData(PD_CATEGORY) as Category | '';
-    resolved.push({ rec, node, cat: pd || rec.category });
+    resolved.push({ rec, node, cat: rec.category });
     if (i % 300 === 0) { progress(80 + (i / pool.length) * 6, `Sorting assets… ${i}/${pool.length}`); await tick(); }
   }
 
-  const intro = await mkSection('Assets', `Every logo, character, illustration, symbol, icon, button, tagline, copy block and vector in the scanned scope, grouped by class and named. Debris is listed so it can be selected and deleted from the plugin.`, page, cursor);
+  const intro = await mkSection('Assets', `Every logo, character, illustration, symbol, icon, button, tagline, copy block and vector in the scanned scope, grouped by class and named. Possible debris is shown for review; source artwork is retained. Unrecognized artwork is marked Needs identification.`, page, cursor);
   intro.section.name = 'Assets · index';
   const idx = mkFrame('index', { dir: 'H', gap: 24, wrap: true, w: 1160 });
   for (const sec of ASSET_SECTIONS) {
-    const n = resolved.filter((r) => sec.cats.includes(r.cat)).length;
+    const n = resolved.filter((r) => (sec.key==='parts'?r.rec.artworkRole==='part':r.rec.artworkRole!=='part'&&sec.cats.includes(r.cat))).length;
     idx.appendChild(await mkText(`${sec.title} · ${n}`, { size: 12, color: n ? INK : MUTED }));
   }
   intro.body.appendChild(idx);
@@ -605,14 +610,14 @@ export async function buildAssets(inv: Inventory, opts: BuildOptions, notes: str
 
   for (const sec of ASSET_SECTIONS) {
     if (cancelled) throw new Error('cancelled');
-    let items = resolved.filter((r) => sec.cats.includes(r.cat));
+    let items = resolved.filter((r) => (sec.key==='parts'?r.rec.artworkRole==='part':r.rec.artworkRole!=='part'&&sec.cats.includes(r.cat)));
     if (!items.length) continue;
     // one of each distinct thing; identical layers collapse to a single cell with a count
-    const seen = new Map<string, { rec: ElementRec; node: SceneNode; cat: Category; n: number }>();
+    const seen = new Map<string, { rec: ElementRec; node: SceneNode; cat: Category; n: number; ids:string[] }>();
     for (const it of items) {
-      const k = sec.kind === 'text' ? `${it.cat}|${it.rec.text.slice(0, 80)}` : `${it.cat}|${it.node.name}|${it.rec.fingerprint}`;
+      const k = sec.kind === 'text' ? `${it.cat}|${it.rec.text.slice(0, 80)}` : `${it.cat}|${sheetName(it.rec, opts.prefix)}|${appearanceKey(it.rec)}`;
       const g = seen.get(k);
-      if (g) g.n++; else seen.set(k, { ...it, n: 1 });
+      if (g) {g.n++;g.ids.push(it.rec.id);} else seen.set(k, { ...it, n: 1,ids:[it.rec.id] });
     }
     const distinct = [...seen.values()].sort((a, b) => a.node.name.localeCompare(b.node.name)).slice(0, sec.cap);
     progress(86, `Assets · ${sec.title}…`);
@@ -624,7 +629,7 @@ export async function buildAssets(inv: Inventory, opts: BuildOptions, notes: str
     if (sec.kind === 'list') {
       const col = mkFrame('list', { dir: 'V', gap: 4 });
       for (const d of distinct) {
-        col.appendChild(await mkText(`${stripPrefix(d.node.name, opts.prefix)} · ${Math.round(d.rec.w)}×${Math.round(d.rec.h)} · ${d.rec.page}${d.n > 1 ? ` · ×${d.n}` : ''}`, { size: 10, color: MUTED }));
+        col.appendChild(await mkText(`${sheetName(d.rec, opts.prefix)} · ${Math.round(d.rec.w)}×${Math.round(d.rec.h)} · ${d.rec.page}${d.n > 1 ? ` · ×${d.n}` : ''}`, { size: 10, color: MUTED }));
       }
       body.appendChild(col);
       body.appendChild(await mkText('Tip: in the plugin\'s Elements tab, "Select debris" selects these on the current page so you can delete them.', { size: 10, color: MUTED }));
@@ -634,11 +639,12 @@ export async function buildAssets(inv: Inventory, opts: BuildOptions, notes: str
 
     const grid = mkFrame('grid', { dir: 'H', gap: 24, wrap: true, w: 1160, align: 'MIN' });
     body.appendChild(grid);
+    if (sec.key === 'debris') body.appendChild(await mkText('Possible debris · inspect before deleting. Hidden and empty paths may have no visible preview.', {size:10,color:MUTED}));
     for (const d of distinct) {
       let clone: SceneNode;
-      try { clone = d.node.clone(); } catch { continue; }
+      try { clone = d.node.clone(); } catch { notes.push(`Could not copy ${d.node.name} (${d.node.id}) to its contact sheet.`); continue; }
       try {
-        const cell = mkFrame(stripPrefix(d.node.name, opts.prefix), { dir: 'V', gap: 8, align: 'MIN' });
+        const cell = mkFrame(sheetName(d.rec, opts.prefix), { dir: 'V', pad:12, gap:8, align:'MIN', fill:{r:0.82,g:0.82,b:0.82} });
         grid.appendChild(cell);
         if (sec.kind === 'text') {
           cell.appendChild(clone);
@@ -655,19 +661,21 @@ export async function buildAssets(inv: Inventory, opts: BuildOptions, notes: str
           box.appendChild(clone);
           unlockSizing(clone);
           if (w > 480 || h > 480) { const sc = Math.min(480 / w, 480 / h); try { (clone as any).rescale(sc); } catch { /* ignore */ } }
-          clone.x = 0; clone.y = 0;
+          clone.x = (box.width - clone.width) / 2; clone.y = (box.height - clone.height) / 2;
           // vector-class assets become components so they can be reused; buttons stay as-is (they get variant sets on the Components page)
           if (['logos', 'characters', 'illustrations', 'symbols', 'icons', 'vectors'].includes(sec.key)) {
             const comp = figma.createComponentFromNode(box);
-            comp.name = d.node.name.startsWith(opts.prefix) ? d.node.name : `${opts.prefix}${d.cat}/${slug(d.node.name)}`;
+            comp.name = `${opts.prefix}${d.cat}/${slug(sheetName(d.rec, opts.prefix), 80)}`;
             comp.description = `${d.cat} · ${Math.round(d.rec.w)}×${Math.round(d.rec.h)} · from "${d.rec.page}"`;
             comp.setPluginData(PD_GENERATED, '1');
           }
         }
-        cell.appendChild(await mkText(stripPrefix(d.node.name, opts.prefix), { bold: true, size: 10 }));
+        const caption=await mkText(sheetName(d.rec, opts.prefix), { bold: true, size: 10 });cell.appendChild(caption);
+        linkSheetCell(cell,d.ids,caption,d.cat,opts.prefix);
         cell.appendChild(await mkText(`${Math.round(d.rec.w)}×${Math.round(d.rec.h)}${d.n > 1 ? ` · ×${d.n}` : ''}`, { size: 9, color: MUTED }));
         count++;
-      } catch {
+      } catch (e) {
+        notes.push(`Could not place ${d.node.name} (${d.node.id}): ${String(e)}`);
         try { clone.remove(); } catch { /* ignore */ }
       }
     }
@@ -716,6 +724,8 @@ export async function build(inv: Inventory, opts: BuildOptions): Promise<BuildRe
   const notes: string[] = [];
   const res: Omit<BuildResult, 'files'> = { paintStyles: 0, textStyles: 0, effectStyles: 0, variables: 0, labeled: 0, componentSets: 0, components: 0, icons: 0, assets: 0, pages: [], notes };
 
+  await refreshIdentifications(inv);
+  if (!inv.elements.length && !inv.icons.length && !inv.shapes.length) throw new Error('No source artwork in this scan. Select the original design page or use Document scope, then scan again.');
   await loadFont(UI_FONT);
   await loadFont(UI_BOLD);
 

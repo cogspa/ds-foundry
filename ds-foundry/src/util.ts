@@ -1,3 +1,8 @@
+export const PD_ASSET_ID = 'dsf.assetId';
+export const PD_ASSET_VARIANT = 'dsf.assetVariant';
+export const PD_ASSET_CONFIDENCE = 'dsf.assetConfidence';
+export const PD_ASSET_PROJECT = 'dsf.assetProject';
+
 export const PD_ORIGINAL = 'dsf.originalName';
 export const PD_CATEGORY = 'dsf.category';
 export const PD_GENERATED = 'dsf.generated';
@@ -111,7 +116,7 @@ export function effectKey(effects: ReadonlyArray<Effect>): string {
       if (e.type === 'DROP_SHADOW' || e.type === 'INNER_SHADOW') {
         return `${e.type}:${round(e.offset.x)}:${round(e.offset.y)}:${round(e.radius)}:${round(e.spread || 0)}:${rgbaCss(e.color.r, e.color.g, e.color.b, e.color.a)}`;
       }
-      return `${e.type}:${round(e.radius)}`;
+      return `${e.type}:${'radius' in e ? round(e.radius) : JSON.stringify(e)}`;
     })
     .join('|');
 }

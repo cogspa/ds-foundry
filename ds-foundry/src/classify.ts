@@ -163,6 +163,25 @@ function vectorStats(node: SceneNode, depth = 0, acc = { n: 0, text: 0 }): { n: 
   return acc;
 }
 
+/** Strong UI evidence overrides logo guesses, including stale saved categories.
+ * A brand mark inside a control may still be a logo; the enclosing control is not. */
+export function logoUiCategory(node: SceneNode): Category | null {
+  if (!CONTAINER_TYPES.has(node.type) || !('children' in node)) return null;
+  const original = node.getPluginData?.('dsf.originalName');
+  const name = `${original || ''} ${node.name}`.toLowerCase().replace(/[-_/]+/g, ' ');
+  const texts = collectTexts(node).filter(t => t.visible !== false).map(t => t.characters.trim());
+  if (/\b(status bar|pagination|page indicator|page control)\b/.test(name)) return 'nav';
+  if (node.height <= 100 && texts.some(t => /^(continue\b|sign[ -]?(in|up)\b|log[ -]?in\b|buy now\b|get started\b)/i.test(t))) return 'button';
+  if (node.width >= 200 && node.height <= 100 && node.width / Math.max(node.height, 1) >= 4 &&
+      texts.some(t => /^\d{1,2}:\d{2}(?:\s*[AP]M)?$/i.test(t)) && vectorStats(node).n >= 2) return 'nav';
+  // An anonymous row of tiny dots/pills is pagination, not outlined lettering.
+  const kids = node.children.filter(k => k.visible !== false);
+  if (!/\b(logo|wordmark|logotype)\b/.test(name) && kids.length >= 3 && kids.length <= 12 && node.height <= 20 &&
+      kids.every(k => ['ELLIPSE','RECTANGLE'].includes(k.type) && k.height <= 12 && k.width <= 32) &&
+      Math.max(...kids.map(k => k.y+k.height/2))-Math.min(...kids.map(k => k.y+k.height/2)) <= 3) return 'nav';
+  return null;
+}
+
 export function classify(node: SceneNode, ctx: ClassifyCtx): Classification {
   const w = node.width, h = node.height;
   const aspect = h > 0 ? w / h : 1;
@@ -171,16 +190,53 @@ export function classify(node: SceneNode, ctx: ClassifyCtx): Classification {
   const radius = uniformRadius(node);
   const fp = (cat: string, extra = '') => `${cat}|${Math.round(w / 8)}x${Math.round(h / 8)}|${fillHex || ''}|${strokeHex || ''}|${Math.round(radius)}${extra}`;
 
+  if (node.type === 'COMPONENT_SET') return {category:'other',text:'',fillHex,strokeHex,fingerprint:node.id,desc:''};
+
+  const uiCategory = logoUiCategory(node);
+  if (uiCategory) return {category:uiCategory,text:collectTexts(node)[0]?.characters || '',fillHex,strokeHex,fingerprint:fp(uiCategory),desc:'UI control; not a standalone brand asset'};
+
   // ---- text ----
   if (node.type === 'TEXT') {
     const t = node as TextNode;
     const chars = t.characters;
+    const sourceName = node.getPluginData?.('dsf.originalName') || node.name;
+    if (/\b(logo|wordmark|logotype)\b/i.test(sourceName) && chars.trim() && chars.length <= 80)
+      return {category:'logo',text:chars,fillHex,strokeHex,fingerprint:fp('logo',`|${chars}`),desc:'named text wordmark'};
     const size = typeof t.fontSize === 'number' ? t.fontSize : 14;
     const lines = chars.split('\n').length;
     let cat: Category = 'text';
     if (chars.length > 90 || lines > 2 || (lines === 2 && chars.length > 60)) cat = 'copy';
     else if (size >= 14 && size < 34 && chars.trim().split(/\s+/).length >= 3 && chars.length <= 90 && !/[.!?]$/.test(chars.trim()) && !ctx.topLevel) cat = 'tagline';
     return { category: cat, text: chars, fillHex, strokeHex, fingerprint: fp(cat), desc: '' };
+  }
+
+  // Small, simple stray paths only. Size, visibility, or an empty fill alone
+  // are not evidence that an icon, primitive, or group is a mistake.
+  const genericPathName = /^(vector|line|path)([\s-]*\d+)?(\s*copy(\s*\d+)?)?$/i.test(node.name.trim());
+  let partOfArtwork = false;
+  for (let p = node.parent; p && p.type !== 'PAGE' && p.type !== 'DOCUMENT'; p = p.parent) {
+    if (p.type === 'COMPONENT' || p.type === 'COMPONENT_SET' || p.type === 'INSTANCE' ||
+        p.type === 'BOOLEAN_OPERATION' || (p.type === 'GROUP' && isVectorSubtree(p)) ||
+        (p.type === 'FRAME' && Math.max(p.width, p.height) <= 64 && isVectorSubtree(p))) {
+      partOfArtwork = true; break;
+    }
+  }
+  if (!partOfArtwork && genericPathName && Math.max(w, h) <= 16) {
+    let stray = node.type === 'LINE';
+    let points = 2;
+    if (node.type === 'VECTOR') {
+      try {
+        const net = node.vectorNetwork;
+        points = net.vertices.length;
+        const curved = net.segments.some(s => [s.tangentStart, s.tangentEnd].some(t => t && (t.x !== 0 || t.y !== 0)));
+        const degrees = new Map<number, number>();
+        net.segments.forEach(s => {degrees.set(s.start, (degrees.get(s.start) || 0) + 1); degrees.set(s.end, (degrees.get(s.end) || 0) + 1);});
+        const open = [...degrees.values()].some(n => n === 1);
+        stray = points <= 3 && net.segments.length <= 2 && !net.regions?.length && !curved && (open || net.segments.length === 0);
+      } catch { /* Unknown geometry is not debris evidence. */ }
+    }
+    if (stray) return {category:'debris',text:'',fillHex,strokeHex,
+      fingerprint:`debris|${node.id}`,desc:`possible-stray-${points}-point-path-${Math.round(w)}x${Math.round(h)}`};
   }
 
   // ---- lines / dividers ----
@@ -199,29 +255,17 @@ export function classify(node: SceneNode, ctx: ClassifyCtx): Classification {
     }
   }
 
-  // ---- debris: fragments nobody meant to keep ----
-  const ntype: string = node.type;
-  if (VECTOR_TYPES.has(ntype) || ntype === 'GROUP') {
-    const tiny = Math.max(w, h) < 6 || (w * h < 24 && ntype !== 'LINE');
-    let empty = false;
-    try { empty = ntype === 'VECTOR' && (node as VectorNode).vectorNetwork.segments.length === 0; } catch { /* ignore */ }
-    const invisibleFill = ('fills' in node) && !fillHex && !strokeHex && ntype !== 'GROUP';
-    const ghost = ('opacity' in node && (node as BlendMixin).opacity === 0) || (node.visible === false && Math.max(w, h) < 24);
-    if (tiny || empty || ghost || (invisibleFill && Math.max(w, h) < 24)) {
-      return { category: 'debris', text: '', fillHex, strokeHex, fingerprint: `debris|${node.type}|${Math.round(w)}x${Math.round(h)}`, desc: describeShape(node, fillHex, strokeHex) };
-    }
-  }
-
   // ---- vector art tiers: icon → symbol → illustration / logo ----
   if (VECTOR_TYPES.has(node.type) || CONTAINER_TYPES.has(node.type)) {
-    const nameHint = node.name.toLowerCase();
+    // Prefer pre-plugin names so old generated "ds/logo/..." labels cannot validate themselves.
+    const nameHint = (node.getPluginData?.('dsf.originalName') || node.name).toLowerCase();
     const vec = isVectorSubtree(node);
     const kids = 'children' in node ? countDescendants(node) : 0;
     // plain primitives (rect, ellipse, line, polygon, star) are shapes once they outgrow icon size — only paths and groups can be art
     const primitive = !CONTAINER_TYPES.has(node.type) && node.type !== 'VECTOR' && node.type !== 'BOOLEAN_OPERATION';
     const vfp = (cat: string) => `${cat}|${nameHint}|${Math.round(w)}x${Math.round(h)}|${kids}`;
     const artDesc = () => (CONTAINER_TYPES.has(node.type) ? describeGroup(node) : describeShape(node, fillHex, strokeHex));
-    if (/\b(logo|wordmark|brand|logotype)\b/.test(nameHint) && (vec || CONTAINER_TYPES.has(node.type))) {
+    if (/\b(logo|wordmark|logotype)\b/.test(nameHint) && (vec || CONTAINER_TYPES.has(node.type))) {
       return { category: 'logo', text: '', fillHex, strokeHex, fingerprint: vfp('logo'), desc: artDesc() };
     }
     if (vec) {
@@ -231,10 +275,8 @@ export function classify(node: SceneNode, ctx: ClassifyCtx): Classification {
       if (primitive) {
         return { category: 'shape', text: '', fillHex, strokeHex, fingerprint: fp('shape'), desc: describeShape(node, fillHex, strokeHex) };
       }
-      // wide, short, several pieces: a wordmark or lockup drawn as outlines
-      if (aspect >= 2.4 && h <= 160 && kids >= 3 && Math.max(w, h) > 64) {
-        return { category: 'logo', text: '', fillHex, strokeHex, fingerprint: vfp('logo'), desc: artDesc() };
-      }
+      // Width and path count cannot distinguish outlined lettering from UI.
+      // Unnamed outlines remain artwork candidates for vision/reference review.
       if (Math.max(w, h) <= 200 && kids <= 6 && aspect >= 0.4 && aspect <= 2.5 && Math.max(w, h) > 64) {
         return { category: 'symbol', text: '', fillHex, strokeHex, fingerprint: vfp('symbol'), desc: artDesc() };
       }
@@ -246,12 +288,12 @@ export function classify(node: SceneNode, ctx: ClassifyCtx): Classification {
         return { category: 'symbol', text: '', fillHex, strokeHex, fingerprint: vfp('symbol'), desc: describeShape(node, fillHex, strokeHex) };
       }
     }
-    // a container that is mostly vectors plus a text node or two is a logo lockup (mark + wordmark)
-    if (CONTAINER_TYPES.has(node.type)) {
+    // A symbol beside text is not sufficient: controls use that layout too.
+    // Keep compact unsurfaced mark/text groups together for semantic review.
+    if (CONTAINER_TYPES.has(node.type) && !fillHex && !strokeHex && !hasShadow(node)) {
       const st = vectorStats(node);
-      if (st.n >= 2 && st.text >= 1 && st.text <= 2 && aspect >= 1.8 && h <= 160 && kids <= 30) {
-        return { category: 'logo', text: collectTexts(node)[0]?.characters || '', fillHex, strokeHex, fingerprint: vfp('logo'), desc: artDesc() };
-      }
+      if (st.n >= 1 && st.text >= 1 && st.text <= 2 && h <= 160 && kids <= 30)
+        return {category:'symbol',text:collectTexts(node)[0]?.characters || '',fillHex,strokeHex,fingerprint:vfp('symbol'),desc:'mark-and-text candidate; brand identity needs review'};
     }
   }
 

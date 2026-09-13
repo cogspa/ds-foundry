@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.3.0 — 2026-09-12
+
+- Add Canonical Asset Resolution with normalized geometry, independent variant metadata, bounded candidates and optional structured multimodal comparison.
+- Add explicit family review and approval, project references, stable IDs, `asset-map.json` and retained layout metadata.
+- Preserve naming/build flows and add key-free regression tests. See `CANONICAL_ASSETS.md` in the repository root for limits and native acceptance steps.
+
+
 ## 0.2.0 — 2026-09-12
 
 - `kind` on proposals and results; `abstract` results left unnamed for the designer (`usage.abstract`).

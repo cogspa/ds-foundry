@@ -1,0 +1,19 @@
+{
+  "items": [
+    {
+      "id": "owting-lockup",
+      "image": "images/owting-lockup.png",
+      "is_logo": true,
+      "label": "Owting owl-eye mark plus readable wordmark",
+      "sha256": "07b1fa0a4d7e8bd32b56e189b5357cff998889e931986de15b976cb99b2c8a1e"
+    },
+    {
+      "id": "ui-contact-sheet",
+      "image": "images/ui-contact-sheet.png",
+      "is_logo": false,
+      "label": "Contact sheet of status bars, pagination and a branded sign-in button; not a logo",
+      "sha256": "00fb2fe9303abd42533691a0f327664083f4e87260cbaade30260d4b50995b4c"
+    }
+  ],
+  "scope": "Two screenshot smoke cases, not a general logo accuracy benchmark. Whole-sheet negative does not score each UI item independently. Owting is a known example in the prompt."
+}

@@ -189,7 +189,7 @@ export function nameRadii(list: RadiusToken[]): RadiusToken[] {
 export function nameEffects(list: EffectToken[]): EffectToken[] {
   const shadows = list.filter((e) => e.effects.some((x) => x.type === 'DROP_SHADOW' || x.type === 'INNER_SHADOW'));
   const blurs = list.filter((e) => !shadows.includes(e));
-  const depth = (e: EffectToken) => e.effects.reduce((n, x) => n + x.radius + ('offset' in x ? Math.abs(x.offset.y) : 0), 0);
+  const depth = (e: EffectToken) => e.effects.reduce((n, x) => n + ('radius' in x ? x.radius : 0) + ('offset' in x ? Math.abs(x.offset.y) : 0), 0);
   shadows.sort((a, b) => depth(a) - depth(b));
   blurs.sort((a, b) => depth(a) - depth(b));
   shadows.forEach((e, i) => (e.name = `elevation/${i + 1}`));

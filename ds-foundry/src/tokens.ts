@@ -1,3 +1,4 @@
+import { exportAssetMap } from './asset-review';
 import { Inventory, BuildOptions, BuildResult } from './types';
 import { rgbaCss, round } from './util';
 
@@ -24,7 +25,7 @@ function setDeep(obj: Record<string, any>, path: string[], value: any) {
 export function buildTokenFiles(inv: Inventory, opts: BuildOptions, result: Omit<BuildResult, 'files'>): Record<string, string> {
   const files: Record<string, string> = {};
   const generatedAt = new Date().toISOString();
-  const source = { plugin: 'DS Foundry', version: '1.4.0', generatedAt, scope: inv.scope, pages: inv.pages };
+  const source = { plugin: 'DS Foundry', version: '1.5.0', generatedAt, scope: inv.scope, pages: inv.pages };
 
   // -------- DTCG tokens.json --------
   const dtcg: Record<string, any> = { $schema: 'https://tr.designtokens.org/format/', $extensions: { 'com.cogspa.dsfoundry': source } };
@@ -50,7 +51,7 @@ export function buildTokenFiles(inv: Inventory, opts: BuildOptions, result: Omit
         $extensions: { usage: e.count },
       });
     } else {
-      setDeep(dtcg, ['blur', ...e.name.split('/')], { $type: 'dimension', $value: `${round(e.effects[0].radius)}px`, $extensions: { usage: e.count } });
+      setDeep(dtcg, ['blur', ...e.name.split('/')], { $type: 'dimension', $value: `${round('radius' in e.effects[0] ? e.effects[0].radius : 0)}px`, $extensions: { usage: e.count } });
     }
   }
   for (const t of inv.types) {
@@ -141,5 +142,10 @@ export function buildTokenFiles(inv: Inventory, opts: BuildOptions, result: Omit
     fonts: inv.fonts,
   }, null, 2);
 
+  if (inv.assetMap) files['asset-map.json'] = exportAssetMap(inv.assetMap);
+  const canonical = new Map((inv.assetMap?.assets || []).flatMap(f=>f.variants.map(v=>[v.nodeId,{assetId:f.assetId,variantId:v.variantId,status:f.status}] as const)));
+  files['layout-metadata.json'] = JSON.stringify({ schemaVersion: 1, elements: [...inv.elements,...inv.icons,...inv.shapes].map(r=>({nodeId:r.id,category:r.category,layout:r.layout,canonical:canonical.get(r.id)})) },null,2);
+  files['asset-identities.json']=JSON.stringify({schemaVersion:1,assets:[...inv.elements,...inv.icons,...inv.shapes].filter(r=>r.assetName).map(r=>({nodeId:r.id,name:r.semanticName,kind:r.category,...r.assetName}))},null,2);
+  files['artwork-parts.json']=JSON.stringify({schemaVersion:1,artwork:[...inv.elements,...inv.icons,...inv.shapes].filter(r=>r.artworkRole).map(r=>({nodeId:r.id,role:r.artworkRole,partOf:r.partOf})),parts:inv.artworkParts||[]},null,2);
   return files;
 }

@@ -1,9 +1,15 @@
+import {artworkBoundary,artworkRole} from './artwork';
+import {readAssetName} from './asset-names';
 import { Scope, Inventory, ColorToken, TypeToken, SpaceToken, RadiusToken, EffectToken, ElementRec, ComponentRef } from './types';
-import { classify, ClassifyCtx } from './classify';
+import { classify, ClassifyCtx, logoUiCategory } from './classify';
 import { nameColors, nameTypes, nameSpacing, nameRadii, nameEffects, sizeClass } from './naming';
 import { toHex, effectKey, effectCss, tick, progress, cancelled, snap, rgbToHsl } from './util';
 
-interface WalkItem { node: SceneNode; ctx: ClassifyCtx; inInstance: boolean; page: string; }
+import { hasGeneratedAncestor, resolvedCategory } from './contact-sheet';
+import { extractIdentity } from './identity';
+import { layoutMetadata } from './layout-meta';
+
+interface WalkItem { node: SceneNode; ctx: ClassifyCtx; inInstance: boolean; page: string; artworkOwner?:string; }
 
 const SKIP_TYPES = new Set(['SLICE', 'STICKY', 'CONNECTOR', 'SHAPE_WITH_TEXT', 'CODE_BLOCK', 'WIDGET', 'EMBED', 'LINK_UNFURL', 'MEDIA', 'TABLE']);
 
@@ -13,6 +19,7 @@ export async function scan(scope: Scope, baseGrid: number): Promise<Inventory> {
   const spacing = new Map<number, SpaceToken>();
   const radii = new Map<number, RadiusToken>();
   const effects = new Map<string, EffectToken>();
+  const artworkParts:NonNullable<Inventory['artworkParts']>=[];
   const elements: ElementRec[] = [];
   const icons: ElementRec[] = [];
   const shapes: ElementRec[] = [];
@@ -142,7 +149,7 @@ export async function scan(scope: Scope, baseGrid: number): Promise<Inventory> {
     if (cancelled) throw new Error('cancelled');
     const item = stack.pop()!;
     const node = item.node;
-    if (SKIP_TYPES.has(node.type) || node.removed) continue;
+    if (SKIP_TYPES.has(node.type) || node.removed || hasGeneratedAncestor(node)) continue;
     visited++;
     sinceTick++;
     if (sinceTick >= 400) {
@@ -176,7 +183,7 @@ export async function scan(scope: Scope, baseGrid: number): Promise<Inventory> {
     }
 
     // components in use
-    if (node.type === 'INSTANCE') {
+    if (node.type === 'INSTANCE' && !item.artworkOwner) {
       try {
         const mc = await (node as InstanceNode).getMainComponentAsync();
         if (mc) {
@@ -192,12 +199,23 @@ export async function scan(scope: Scope, baseGrid: number): Promise<Inventory> {
     let textRole = '';
     if (node.type === 'TEXT') textRole = textRoleOf(node as TextNode);
 
-    const cls = classify(node, item.ctx);
-    if (cls.category !== 'other') {
+    const cls = item.artworkOwner ? {category:'other' as const,text:'',fillHex:null,strokeHex:null,fingerprint:'',desc:''} : classify(node, item.ctx);
+    const savedCategory = node.getPluginData('dsf.category');
+    if (!item.artworkOwner && (savedCategory !== 'debris' || node.getPluginData('dsf.semanticName'))) cls.category = resolvedCategory(savedCategory, cls.category);
+    if (!item.artworkOwner && cls.category === 'logo') cls.category = logoUiCategory(node) || cls.category;
+    if(!item.artworkOwner&&readAssetName(node)?.appearance.crop&&cls.category==='debris')cls.category='symbol';
+    const boundary=!item.artworkOwner&&artworkBoundary(node,cls.category);
+    const artContainer='children' in node&&['icon','logo','character','illustration','symbol'].includes(cls.category);
+    if(item.artworkOwner)artworkParts.push({nodeId:node.id,ownerId:item.artworkOwner,name:node.name,nodeType:node.type,layout:layoutMetadata(node)});
+    if (!item.artworkOwner && (!artContainer || boundary) && (cls.category !== 'other' || node.type === 'COMPONENT' || node.type === 'INSTANCE' || node.type === 'COMPONENT_SET')) {
       const rec: ElementRec = {
         id: node.id,
+        nodeType: node.type,
+        ...(['icon','logo','character','illustration','symbol'].includes(cls.category)?artworkRole(node):{}),
+        assetName:readAssetName(node),
         category: cls.category,
         name: node.name,
+        semanticName: node.getPluginData('dsf.semanticName') || undefined,
         text: cls.text.slice(0, 80),
         w: node.width,
         h: node.height,
@@ -208,31 +226,25 @@ export async function scan(scope: Scope, baseGrid: number): Promise<Inventory> {
         textRole,
         desc: cls.desc,
         page: item.page,
+        identity: extractIdentity(node),
+        layout: layoutMetadata(node),
       };
       if (cls.category === 'icon') icons.push(rec);
       else if (cls.category === 'shape') { if (shapes.length < 4000) shapes.push(rec); }
       else elements.push(rec);
     }
 
-    // descend (icons and images are leaves for our purposes; still collect their colours)
-    if ('children' in node && cls.category !== 'icon') {
-      const kids = (node as ChildrenMixin).children;
-      const pw = node.width, ph = node.height;
-      for (let i = kids.length - 1; i >= 0; i--) {
-        const k = kids[i];
-        stack.push({ node: k, ctx: { parentW: pw, parentH: ph, yInParent: k.y, topLevel: false }, inInstance: inInstance || node.type === 'INSTANCE', page: item.page });
-      }
-    } else if ('children' in node && cls.category === 'icon') {
-      // still harvest colours inside icons
-      const inner: SceneNode[] = [...(node as ChildrenMixin).children];
-      while (inner.length) {
-        const k = inner.pop()!;
-        if ('fills' in k) addPaints((k as GeometryMixin).fills);
-        if ('strokes' in k) addPaints((k as GeometryMixin).strokes, true, (k as GeometryMixin).strokeWeight);
-        if ('children' in k) inner.push(...(k as ChildrenMixin).children);
+    // Walk internal nodes for token extraction and part metadata, not asset classification.
+    if ('children' in node) {
+      for (let i=node.children.length-1;i>=0;i--) {
+        const k=node.children[i];
+        stack.push({node:k,ctx:{parentW:node.width,parentH:node.height,yInParent:k.y,topLevel:false},inInstance:inInstance||node.type==='INSTANCE',page:item.page,artworkOwner:item.artworkOwner||(boundary?node.id:undefined)});
       }
     }
   }
+
+  const roles = new Map([...elements, ...icons, ...shapes].map(r => [r.id, r.category]));
+  for (const r of [...elements, ...icons, ...shapes]) if (r.layout?.parentId) r.layout.parentSemanticRole = roles.get(r.layout.parentId);
 
   progress(90, 'Naming tokens…');
   await tick();
@@ -249,6 +261,7 @@ export async function scan(scope: Scope, baseGrid: number): Promise<Inventory> {
   for (const e of elements) if (e.category === 'text' && e.textRole) e.textRole = typeName.get(e.textRole) || 'body';
 
   const inv: Inventory = {
+    artworkParts,
     scope,
     pages,
     pageIds,

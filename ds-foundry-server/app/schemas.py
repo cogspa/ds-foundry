@@ -48,6 +48,7 @@ class NameRequest(BaseModel):
     items: list[Item] = Field(min_length=1, max_length=40)
     critic: bool = Field(default=True, description="Run the critic pass")
     learn: bool = Field(default=True, description="Add accepted names to the glossary")
+    excluded_reference_names: list[str] = Field(default_factory=list,max_length=10000)
     use_cache: bool = True
     project: str = Field(default="default", description="Glossary/cache namespace")
     references: list[Reference] = Field(default_factory=list, description="Optional references from the plugin; the server also keeps its own per project")

@@ -1,6 +1,57 @@
 "use strict";
 (() => {
+  // src/asset-names.ts
+  var APPEARANCE_FIELDS = ["color", "pose", "crop", "treatment", "orientation"];
+  var clean = (s) => String(s || "").trim().toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "");
+  function normalizeAssetName(value) {
+    if (!value || typeof value !== "object") return null;
+    const v = value, identity = clean(v.identity).slice(0, 40);
+    if (!identity) return null;
+    const appearance = {};
+    for (const k of APPEARANCE_FIELDS) {
+      const s = clean(v.appearance?.[k]).slice(0, 30);
+      if (s) appearance[k] = s;
+    }
+    return { identity, appearance };
+  }
+  function assetName(value) {
+    return [value.identity, ...APPEARANCE_FIELDS.map((k) => value.appearance[k]).filter(Boolean)].join("-");
+  }
+  function readAssetName(node) {
+    try {
+      return normalizeAssetName(JSON.parse(node.getPluginData("dsf.assetName")));
+    } catch {
+      return null;
+    }
+  }
+
+  // src/artwork.ts
+  var ART = /* @__PURE__ */ new Set(["icon", "logo", "character", "illustration", "symbol"]);
+  function artworkBoundary(node, category) {
+    if (!("children" in node) || !node.children.length || !ART.has(category)) return false;
+    if (category === "logo") return true;
+    if (node.type === "COMPONENT" || node.type === "INSTANCE" || node.type === "BOOLEAN_OPERATION") return true;
+    const explicit = node.getPluginData("dsf.semanticName") || readAssetName(node)?.identity;
+    if (explicit) return true;
+    const clusters = node.children.filter((n) => "children" in n && n.children.length > 0 && n.visible !== false && n.width * n.height >= node.width * node.height * 0.15);
+    for (let i = 0; i < clusters.length; i++) for (let j = i + 1; j < clusters.length; j++) {
+      const a = clusters[i], b = clusters[j];
+      const overlap = Math.max(0, Math.min(a.x + a.width, b.x + b.width) - Math.max(a.x, b.x)) * Math.max(0, Math.min(a.y + a.height, b.y + b.height) - Math.max(a.y, b.y));
+      if (overlap < Math.min(a.width * a.height, b.width * b.height) * 0.05) return false;
+    }
+    return true;
+  }
+  function artworkRole(node) {
+    const data = readAssetName(node);
+    if (data?.appearance.crop) return { artworkRole: "part", partOf: data.identity };
+    return { artworkRole: "whole", partOf: void 0 };
+  }
+
   // src/util.ts
+  var PD_ASSET_ID = "dsf.assetId";
+  var PD_ASSET_VARIANT = "dsf.assetVariant";
+  var PD_ASSET_CONFIDENCE = "dsf.assetConfidence";
+  var PD_ASSET_PROJECT = "dsf.assetProject";
   var PD_ORIGINAL = "dsf.originalName";
   var PD_CATEGORY = "dsf.category";
   var PD_GENERATED = "dsf.generated";
@@ -85,7 +136,7 @@
       if (e.type === "DROP_SHADOW" || e.type === "INNER_SHADOW") {
         return `${e.type}:${round(e.offset.x)}:${round(e.offset.y)}:${round(e.radius)}:${round(e.spread || 0)}:${rgbaCss(e.color.r, e.color.g, e.color.b, e.color.a)}`;
       }
-      return `${e.type}:${round(e.radius)}`;
+      return `${e.type}:${"radius" in e ? round(e.radius) : JSON.stringify(e)}`;
     }).join("|");
   }
   function snap(v, grid) {
@@ -233,6 +284,18 @@
     acc.n++;
     return acc;
   }
+  function logoUiCategory(node) {
+    if (!CONTAINER_TYPES.has(node.type) || !("children" in node)) return null;
+    const original = node.getPluginData?.("dsf.originalName");
+    const name = `${original || ""} ${node.name}`.toLowerCase().replace(/[-_/]+/g, " ");
+    const texts = collectTexts(node).filter((t) => t.visible !== false).map((t) => t.characters.trim());
+    if (/\b(status bar|pagination|page indicator|page control)\b/.test(name)) return "nav";
+    if (node.height <= 100 && texts.some((t) => /^(continue\b|sign[ -]?(in|up)\b|log[ -]?in\b|buy now\b|get started\b)/i.test(t))) return "button";
+    if (node.width >= 200 && node.height <= 100 && node.width / Math.max(node.height, 1) >= 4 && texts.some((t) => /^\d{1,2}:\d{2}(?:\s*[AP]M)?$/i.test(t)) && vectorStats(node).n >= 2) return "nav";
+    const kids = node.children.filter((k) => k.visible !== false);
+    if (!/\b(logo|wordmark|logotype)\b/.test(name) && kids.length >= 3 && kids.length <= 12 && node.height <= 20 && kids.every((k) => ["ELLIPSE", "RECTANGLE"].includes(k.type) && k.height <= 12 && k.width <= 32) && Math.max(...kids.map((k) => k.y + k.height / 2)) - Math.min(...kids.map((k) => k.y + k.height / 2)) <= 3) return "nav";
+    return null;
+  }
   function classify(node, ctx) {
     const w = node.width, h = node.height;
     const aspect = h > 0 ? w / h : 1;
@@ -240,15 +303,56 @@
     const strokeHex = ownStrokeHex(node);
     const radius = uniformRadius(node);
     const fp = (cat, extra = "") => `${cat}|${Math.round(w / 8)}x${Math.round(h / 8)}|${fillHex || ""}|${strokeHex || ""}|${Math.round(radius)}${extra}`;
+    if (node.type === "COMPONENT_SET") return { category: "other", text: "", fillHex, strokeHex, fingerprint: node.id, desc: "" };
+    const uiCategory = logoUiCategory(node);
+    if (uiCategory) return { category: uiCategory, text: collectTexts(node)[0]?.characters || "", fillHex, strokeHex, fingerprint: fp(uiCategory), desc: "UI control; not a standalone brand asset" };
     if (node.type === "TEXT") {
       const t = node;
       const chars = t.characters;
+      const sourceName = node.getPluginData?.("dsf.originalName") || node.name;
+      if (/\b(logo|wordmark|logotype)\b/i.test(sourceName) && chars.trim() && chars.length <= 80)
+        return { category: "logo", text: chars, fillHex, strokeHex, fingerprint: fp("logo", `|${chars}`), desc: "named text wordmark" };
       const size = typeof t.fontSize === "number" ? t.fontSize : 14;
       const lines = chars.split("\n").length;
       let cat = "text";
       if (chars.length > 90 || lines > 2 || lines === 2 && chars.length > 60) cat = "copy";
       else if (size >= 14 && size < 34 && chars.trim().split(/\s+/).length >= 3 && chars.length <= 90 && !/[.!?]$/.test(chars.trim()) && !ctx.topLevel) cat = "tagline";
       return { category: cat, text: chars, fillHex, strokeHex, fingerprint: fp(cat), desc: "" };
+    }
+    const genericPathName = /^(vector|line|path)([\s-]*\d+)?(\s*copy(\s*\d+)?)?$/i.test(node.name.trim());
+    let partOfArtwork = false;
+    for (let p = node.parent; p && p.type !== "PAGE" && p.type !== "DOCUMENT"; p = p.parent) {
+      if (p.type === "COMPONENT" || p.type === "COMPONENT_SET" || p.type === "INSTANCE" || p.type === "BOOLEAN_OPERATION" || p.type === "GROUP" && isVectorSubtree(p) || p.type === "FRAME" && Math.max(p.width, p.height) <= 64 && isVectorSubtree(p)) {
+        partOfArtwork = true;
+        break;
+      }
+    }
+    if (!partOfArtwork && genericPathName && Math.max(w, h) <= 16) {
+      let stray = node.type === "LINE";
+      let points = 2;
+      if (node.type === "VECTOR") {
+        try {
+          const net = node.vectorNetwork;
+          points = net.vertices.length;
+          const curved = net.segments.some((s) => [s.tangentStart, s.tangentEnd].some((t) => t && (t.x !== 0 || t.y !== 0)));
+          const degrees = /* @__PURE__ */ new Map();
+          net.segments.forEach((s) => {
+            degrees.set(s.start, (degrees.get(s.start) || 0) + 1);
+            degrees.set(s.end, (degrees.get(s.end) || 0) + 1);
+          });
+          const open = [...degrees.values()].some((n) => n === 1);
+          stray = points <= 3 && net.segments.length <= 2 && !net.regions?.length && !curved && (open || net.segments.length === 0);
+        } catch {
+        }
+      }
+      if (stray) return {
+        category: "debris",
+        text: "",
+        fillHex,
+        strokeHex,
+        fingerprint: `debris|${node.id}`,
+        desc: `possible-stray-${points}-point-path-${Math.round(w)}x${Math.round(h)}`
+      };
     }
     if (node.type === "LINE" || node.type === "RECTANGLE" && (h <= 2 || w <= 2) && Math.max(w, h) >= 24) {
       return { category: "divider", text: "", fillHex, strokeHex, fingerprint: fp("divider"), desc: "" };
@@ -262,28 +366,14 @@
         return { category: "image", text: "", fillHex, strokeHex, fingerprint: fp("image"), desc: "" };
       }
     }
-    const ntype = node.type;
-    if (VECTOR_TYPES.has(ntype) || ntype === "GROUP") {
-      const tiny = Math.max(w, h) < 6 || w * h < 24 && ntype !== "LINE";
-      let empty = false;
-      try {
-        empty = ntype === "VECTOR" && node.vectorNetwork.segments.length === 0;
-      } catch {
-      }
-      const invisibleFill = "fills" in node && !fillHex && !strokeHex && ntype !== "GROUP";
-      const ghost = "opacity" in node && node.opacity === 0 || node.visible === false && Math.max(w, h) < 24;
-      if (tiny || empty || ghost || invisibleFill && Math.max(w, h) < 24) {
-        return { category: "debris", text: "", fillHex, strokeHex, fingerprint: `debris|${node.type}|${Math.round(w)}x${Math.round(h)}`, desc: describeShape(node, fillHex, strokeHex) };
-      }
-    }
     if (VECTOR_TYPES.has(node.type) || CONTAINER_TYPES.has(node.type)) {
-      const nameHint = node.name.toLowerCase();
+      const nameHint = (node.getPluginData?.("dsf.originalName") || node.name).toLowerCase();
       const vec = isVectorSubtree(node);
       const kids2 = "children" in node ? countDescendants(node) : 0;
       const primitive = !CONTAINER_TYPES.has(node.type) && node.type !== "VECTOR" && node.type !== "BOOLEAN_OPERATION";
       const vfp = (cat) => `${cat}|${nameHint}|${Math.round(w)}x${Math.round(h)}|${kids2}`;
       const artDesc = () => CONTAINER_TYPES.has(node.type) ? describeGroup(node) : describeShape(node, fillHex, strokeHex);
-      if (/\b(logo|wordmark|brand|logotype)\b/.test(nameHint) && (vec || CONTAINER_TYPES.has(node.type))) {
+      if (/\b(logo|wordmark|logotype)\b/.test(nameHint) && (vec || CONTAINER_TYPES.has(node.type))) {
         return { category: "logo", text: "", fillHex, strokeHex, fingerprint: vfp("logo"), desc: artDesc() };
       }
       if (vec) {
@@ -292,9 +382,6 @@
         }
         if (primitive) {
           return { category: "shape", text: "", fillHex, strokeHex, fingerprint: fp("shape"), desc: describeShape(node, fillHex, strokeHex) };
-        }
-        if (aspect >= 2.4 && h <= 160 && kids2 >= 3 && Math.max(w, h) > 64) {
-          return { category: "logo", text: "", fillHex, strokeHex, fingerprint: vfp("logo"), desc: artDesc() };
         }
         if (Math.max(w, h) <= 200 && kids2 <= 6 && aspect >= 0.4 && aspect <= 2.5 && Math.max(w, h) > 64) {
           return { category: "symbol", text: "", fillHex, strokeHex, fingerprint: vfp("symbol"), desc: artDesc() };
@@ -306,11 +393,10 @@
           return { category: "symbol", text: "", fillHex, strokeHex, fingerprint: vfp("symbol"), desc: describeShape(node, fillHex, strokeHex) };
         }
       }
-      if (CONTAINER_TYPES.has(node.type)) {
+      if (CONTAINER_TYPES.has(node.type) && !fillHex && !strokeHex && !hasShadow(node)) {
         const st = vectorStats(node);
-        if (st.n >= 2 && st.text >= 1 && st.text <= 2 && aspect >= 1.8 && h <= 160 && kids2 <= 30) {
-          return { category: "logo", text: collectTexts(node)[0]?.characters || "", fillHex, strokeHex, fingerprint: vfp("logo"), desc: artDesc() };
-        }
+        if (st.n >= 1 && st.text >= 1 && st.text <= 2 && h <= 160 && kids2 <= 30)
+          return { category: "symbol", text: collectTexts(node)[0]?.characters || "", fillHex, strokeHex, fingerprint: vfp("symbol"), desc: "mark-and-text candidate; brand identity needs review" };
       }
     }
     if (!CONTAINER_TYPES.has(node.type)) {
@@ -547,7 +633,7 @@
   function nameEffects(list) {
     const shadows = list.filter((e) => e.effects.some((x) => x.type === "DROP_SHADOW" || x.type === "INNER_SHADOW"));
     const blurs = list.filter((e) => !shadows.includes(e));
-    const depth = (e) => e.effects.reduce((n, x) => n + x.radius + ("offset" in x ? Math.abs(x.offset.y) : 0), 0);
+    const depth = (e) => e.effects.reduce((n, x) => n + ("radius" in x ? x.radius : 0) + ("offset" in x ? Math.abs(x.offset.y) : 0), 0);
     shadows.sort((a, b) => depth(a) - depth(b));
     blurs.sort((a, b) => depth(a) - depth(b));
     shadows.forEach((e, i) => e.name = `elevation/${i + 1}`);
@@ -620,6 +706,485 @@
     }
   }
 
+  // src/contact-sheet.ts
+  var categories = /* @__PURE__ */ new Set(["screen", "section", "nav", "card", "button", "input", "badge", "avatar", "image", "icon", "divider", "list-item", "checkbox", "toggle", "text", "shape", "logo", "character", "illustration", "symbol", "tagline", "copy", "debris", "other"]);
+  function resolvedCategory(value, fallback) {
+    return categories.has(value) ? value : fallback;
+  }
+  function hasGeneratedAncestor(node) {
+    let current = node;
+    while (current && current.type !== "DOCUMENT") {
+      if (current.getPluginData(PD_GENERATED) === "1") return true;
+      current = current.parent;
+    }
+    return false;
+  }
+  function appearanceKey(rec) {
+    const f = rec.identity;
+    return f?.geometryReliable && f.geometrySignature ? JSON.stringify([rec.category, f.geometrySignature, f.variant, rec.w, rec.h]) : rec.id;
+  }
+  function sheetName(rec, prefix) {
+    if (rec.semanticName) return rec.semanticName;
+    const path = prefix && rec.name.startsWith(prefix) ? rec.name.slice(prefix.length) : rec.name;
+    const name = path.replace(new RegExp("^" + rec.category + "/"), "").replace(/-/g, " ");
+    if (!isDefaultName(name)) return path;
+    if (rec.category === "debris") return `Possible debris \xB7 ${rec.desc || "empty or tiny vector"}`;
+    if (["icon", "logo", "symbol", "illustration", "character", "other"].includes(rec.category)) {
+      return `Needs identification \xB7 ${rec.desc || rec.category} \xB7 ${rec.id}`;
+    }
+    return elementLabel(rec, "").replace(/\//g, " \xB7 ");
+  }
+  async function refreshIdentifications(inv) {
+    const records = [];
+    const approved = new Map(inv.assetMap?.assets.filter((f) => f.status === "approved").flatMap((f) => f.variants.map((v) => [v.nodeId, f])) || []);
+    for (const rec of [...inv.elements, ...inv.icons, ...inv.shapes]) {
+      const node = await figma.getNodeByIdAsync(rec.id);
+      if (!node || node.removed || hasGeneratedAncestor(node)) continue;
+      rec.name = node.name;
+      rec.assetName = readAssetName(node);
+      if ("width" in node) Object.assign(rec, artworkRole(node));
+      const savedCategory = node.getPluginData(PD_CATEGORY);
+      if (savedCategory !== "debris" || node.getPluginData("dsf.semanticName")) rec.category = resolvedCategory(savedCategory, rec.category);
+      const semantic = node.getPluginData("dsf.semanticName");
+      if (semantic) rec.semanticName = semantic;
+      try {
+        const saved = JSON.parse(node.getPluginData("dsf.assetVariant"));
+        const f = rec.identity;
+        if (!semantic && f && saved.featureSnapshot === JSON.stringify([f.geometrySignature, f.variant, f.visibleText])) {
+          if (typeof saved.canonicalName === "string") rec.semanticName = saved.canonicalName;
+          rec.category = resolvedCategory(saved.kind, rec.category);
+        }
+      } catch {
+      }
+      const family = approved.get(rec.id);
+      if (family && !semantic) {
+        rec.category = family.kind;
+        rec.semanticName = family.canonicalName;
+      }
+      if (rec.category === "logo" && "width" in node) rec.category = logoUiCategory(node) || rec.category;
+      records.push(rec);
+    }
+    inv.elements = records.filter((r) => r.category !== "icon" && r.category !== "shape");
+    inv.icons = records.filter((r) => r.category === "icon");
+    inv.shapes = records.filter((r) => r.category === "shape");
+  }
+
+  // src/identity.ts
+  var q = (v) => Math.round(v * 1e4) / 1e4;
+  function identityHash(s) {
+    let a = 2166136261, b = 5381;
+    for (let i = 0; i < s.length; i++) {
+      a = Math.imul(a ^ s.charCodeAt(i), 16777619);
+      b = Math.imul(b, 33) ^ s.charCodeAt(i);
+    }
+    return (a >>> 0).toString(16).padStart(8, "0") + (b >>> 0).toString(16).padStart(8, "0");
+  }
+  function normalizeVisibleText(s) {
+    return s.normalize("NFKC").toLowerCase().replace(/[™®©]/g, "").replace(/[‐‑–—-]/g, " ").replace(/\s+/g, " ").trim();
+  }
+  var CTA = /^(learn more|read more|buy now|shop now|click here|sign up|log in|get started|submit|next|back|download|continue)$/;
+  function identityText(s) {
+    const t = normalizeVisibleText(s);
+    return t.length >= 2 && t.length <= 120 && !CTA.test(t) ? t : "";
+  }
+  function normalizeNetwork(v, w, h) {
+    if (!v.vertices.length || !v.segments.length || w <= 0 || h <= 0) throw new Error("empty geometry");
+    const ox = Math.min(...v.vertices.map((p) => p.x)), oy = Math.min(...v.vertices.map((p) => p.y));
+    return {
+      vertices: v.vertices.map((p) => [q((p.x - ox) / w), q((p.y - oy) / h), p.strokeCap || "", p.strokeJoin || "", q((p.cornerRadius || 0) / Math.max(w, h))]),
+      segments: v.segments.map((s) => [s.start, s.end, q((s.tangentStart?.x || 0) / w), q((s.tangentStart?.y || 0) / h), q((s.tangentEnd?.x || 0) / w), q((s.tangentEnd?.y || 0) / h)]),
+      regions: (v.regions || []).map((r) => [r.windingRule, r.loops])
+    };
+  }
+  function extractIdentity(node) {
+    let reliable = true, nodes = 0, geometryPoints = 0, vectors = 0, textCount = 0, filled = false, stroked = false, unknownPaint = false;
+    const texts = [], colors = /* @__PURE__ */ new Set(), warnings = [];
+    const walk = (n, depth) => {
+      if (++nodes > 1500 || depth > 24) {
+        reliable = false;
+        return "truncated";
+      }
+      if (n.visible === false || "opacity" in n && n.opacity === 0) return null;
+      const w = n.width, h = n.height;
+      if (!(w > 0 && h > 0)) reliable = false;
+      for (const key of ["fills", "strokes"]) {
+        if (!(key in n)) continue;
+        if (key === "strokes" && "strokeWeight" in n && n.strokeWeight === 0) continue;
+        const paints = n[key];
+        if (!Array.isArray(paints)) {
+          unknownPaint = true;
+          continue;
+        }
+        for (const paint of paints) {
+          if (paint.visible === false || paint.opacity === 0) continue;
+          if (key === "fills") filled = true;
+          else stroked = true;
+          if (paint.type === "SOLID") {
+            colors.add([paint.color.r, paint.color.g, paint.color.b].map((v) => Math.round(v * 255)).join(","));
+          } else {
+            unknownPaint = true;
+            if (paint.type === "IMAGE" || paint.type === "VIDEO") reliable = false;
+          }
+        }
+      }
+      const o = { type: ["GROUP", "FRAME", "COMPONENT", "INSTANCE"].includes(n.type) ? "CONTAINER" : n.type, aspect: q(w / (h || 1)), mask: "isMask" in n ? n.isMask : false };
+      if ("clipsContent" in n) o.clips = n.clipsContent;
+      if (n.type === "VECTOR") {
+        vectors++;
+        try {
+          const network = n.vectorNetwork;
+          geometryPoints += network.vertices.length + network.segments.length;
+          if (geometryPoints > 2e4) throw new Error("geometry budget");
+          o.network = normalizeNetwork(network, w, h);
+        } catch {
+          reliable = false;
+        }
+      } else if (n.type === "TEXT") {
+        textCount++;
+        texts.push(n.characters);
+        o.text = normalizeVisibleText(n.characters);
+        o.font = n.fontName;
+        o.fontSize = typeof n.fontSize === "number" ? q(n.fontSize / (h || 1)) : "mixed";
+        if (typeof n.fontName === "symbol" || typeof n.fontSize === "symbol") reliable = false;
+      } else if (["RECTANGLE", "ELLIPSE", "POLYGON", "STAR", "LINE"].includes(n.type)) {
+        const a = n;
+        o.corners = ["topLeftRadius", "topRightRadius", "bottomRightRadius", "bottomLeftRadius"].map((k) => q((a[k] || 0) / (Math.max(w, h) || 1)));
+        o.points = a.pointCount;
+        o.inner = a.innerRadius;
+        o.arc = a.arcData;
+      } else if (!("children" in n)) reliable = false;
+      if (n.type === "BOOLEAN_OPERATION") o.operation = n.booleanOperation;
+      if ("children" in n) {
+        const budget = Math.max(0, 1500 - nodes);
+        if (n.children.length > budget) reliable = false;
+        o.children = n.children.slice(0, budget).filter((k) => k.visible !== false && (!("opacity" in k) || k.opacity !== 0)).map((k) => {
+          const t = k.relativeTransform;
+          return { bounds: [q(k.width / (w || 1)), q(k.height / (h || 1))], transform: [q(t[0][0]), q(t[0][1]), q(t[0][2] / (w || 1)), q(t[1][0]), q(t[1][1]), q(t[1][2] / (h || 1))], geometry: walk(k, depth + 1) };
+        });
+      }
+      return o;
+    };
+    const geometry = walk(node, 0);
+    if (!vectors && !textCount) reliable = false;
+    if (!reliable) warnings.push("Geometry incomplete or non-distinctive; requires other evidence");
+    const variant = {};
+    if (!unknownPaint && colors.size) {
+      if (colors.size > 1) variant.color = "multi";
+      else {
+        const [r, g, b] = [...colors][0].split(",").map((v) => +v / 255);
+        const { h, s, l } = rgbToHsl(r, g, b);
+        variant.color = l < 0.08 ? "black" : l > 0.95 ? "white" : s < 0.12 ? "gray" : hueName(h);
+      }
+      if (!filled && stroked) variant.treatment = "outline";
+      else if (colors.size === 1 && variant.color !== "white") variant.treatment = "monochrome";
+    }
+    const aspect = node.width / (node.height || 1);
+    variant.orientation = aspect >= 1.8 ? "horizontal" : aspect <= 0.55 ? "vertical" : aspect >= 0.85 && aspect <= 1.18 ? "square" : void 0;
+    if (textCount && !vectors) variant.lockup = "wordmark";
+    else if (textCount && vectors) variant.lockup = textCount > 1 ? "tagline-lockup" : "mark-wordmark";
+    if (textCount && vectors && "layoutMode" in node && node.layoutMode === "VERTICAL" && "children" in node && node.children.length <= 4) variant.orientation = "stacked";
+    return { version: 1, geometrySignature: reliable ? "g1:" + identityHash(JSON.stringify(geometry)) : void 0, geometryReliable: reliable, visibleText: identityText(texts.join(" ")), variant, warnings };
+  }
+  async function componentRelationship(node) {
+    let main = node.type === "COMPONENT" ? node : null;
+    if (node.type === "INSTANCE") {
+      try {
+        main = await node.getMainComponentAsync();
+      } catch {
+      }
+    }
+    if (!main) return {};
+    const set = main.parent?.type === "COMPONENT_SET" ? main.parent : main;
+    return { family: set.key ? "component:" + set.key : void 0, mainComponentId: main.id };
+  }
+
+  // src/similarity.ts
+  function shapeFeatures(root) {
+    const parts = [], palette = /* @__PURE__ */ new Set(), strokes = [];
+    let visited = 0, complete = true;
+    function walk(n, depth) {
+      if (++visited > 512 || depth > 24) {
+        complete = false;
+        return;
+      }
+      if (n.visible === false || "opacity" in n && n.opacity === 0) return;
+      for (const key of ["fills", "strokes"]) {
+        const paints = n[key];
+        if (!Array.isArray(paints)) continue;
+        for (const p of paints) if (p.type === "SOLID" && p.visible !== false && p.opacity !== 0) palette.add([p.color.r, p.color.g, p.color.b].map((v) => Math.round(v * 255)).join(","));
+      }
+      if ("strokeWeight" in n && typeof n.strokeWeight === "number" && n.strokeWeight > 0 && "strokes" in n && Array.isArray(n.strokes) && n.strokes.some((p) => p.visible !== false)) strokes.push(n.strokeWeight / Math.max(root.width, root.height, 1));
+      if (n.type === "VECTOR") try {
+        const v = n.vectorNetwork;
+        if (v.vertices.length + v.segments.length > 2e3) {
+          complete = false;
+          return;
+        }
+        if (v.segments.length >= 3) parts.push(identityHash(JSON.stringify(normalizeNetwork(v, n.width, n.height))));
+      } catch {
+        complete = false;
+      }
+      if ("children" in n) {
+        if (n.children.length > 512) complete = false;
+        for (const c of n.children.slice(0, 512)) walk(c, depth + 1);
+      }
+    }
+    walk(root, 0);
+    strokes.sort((a, b) => a - b);
+    return { geometry: extractIdentity(root).geometrySignature, parts: parts.sort(), palette: [...palette].sort(), stroke: strokes.length ? strokes[Math.floor(strokes.length / 2)] : 0, width: root.width, height: root.height, complete };
+  }
+  function variationName(base, reference, item) {
+    const suffix = [];
+    if (JSON.stringify(reference.palette) !== JSON.stringify(item.palette)) suffix.push("recolored");
+    if (reference.stroke && item.stroke) {
+      const ratio = item.stroke / reference.stroke;
+      if (ratio > 1.2) suffix.push("thick-outline");
+      else if (ratio < 0.8) suffix.push("thin-outline");
+    }
+    if (!suffix.length && Math.abs(item.width / reference.width - 1) > 0.05) suffix.push(Math.round(item.width) + "px");
+    return [base, ...suffix].join("-");
+  }
+
+  // src/sheet-identify.ts
+  var LINK = "dsf.sheetSource";
+  var CAPTION = "dsf.sheetCaption";
+  function linkSheetCell(cell, ids, caption, category, prefix) {
+    cell.setPluginData(LINK, JSON.stringify({ ids, category, prefix }));
+    caption.setPluginData(CAPTION, "1");
+  }
+  function selectedSheetCell() {
+    if (figma.currentPage.selection.length !== 1) return null;
+    let n = figma.currentPage.selection[0];
+    while (n && n.type !== "PAGE" && n.type !== "DOCUMENT") {
+      if (n.getPluginData(LINK)) return n;
+      n = n.parent;
+    }
+    return null;
+  }
+  function readLink(n) {
+    const l = JSON.parse(n.getPluginData(LINK));
+    if (!Array.isArray(l.ids) || !l.ids.length) throw Error("Invalid sheet source link. Rebuild this sheet.");
+    return l;
+  }
+  async function inspectSheetSelection() {
+    const cell = selectedSheetCell();
+    if (!cell) return { cellId: null };
+    const link = readLink(cell), source2 = await figma.getNodeByIdAsync(link.ids[0]);
+    return { cellId: cell.id, name: source2?.getPluginData("dsf.semanticName") || "", sourceName: source2?.name || "Source unavailable", category: link.category, assetName: source2 ? readAssetName(source2) : null };
+  }
+  async function identifySheetSelection(cellId, name, match, metadata) {
+    const cell = selectedSheetCell();
+    if (!cell || cell.id !== cellId) throw Error("Selection changed. Select the contact-sheet item again.");
+    const structured = normalizeAssetName(metadata);
+    const clean2 = structured ? assetName(structured) : slug(name, 100);
+    if (!clean2) throw Error("Enter a name for this item.");
+    const link = readLink(cell);
+    const source2 = await figma.getNodeByIdAsync(link.ids[0]);
+    if (!source2 || source2.removed || source2.type === "PAGE" || source2.type === "DOCUMENT" || hasGeneratedAncestor(source2)) throw Error("Original artwork is missing. Rebuild the sheet from the source artwork.");
+    await figma.loadAllPagesAsync();
+    const cells = figma.root.children.flatMap((p) => p.findAll((n) => !!n.getPluginData(LINK)));
+    const refs = /* @__PURE__ */ new Map();
+    for (const c of cells) {
+      const l = readLink(c);
+      for (const id of l.ids) refs.set(id, l);
+    }
+    for (const id of link.ids) refs.set(id, link);
+    const base = shapeFeatures(source2);
+    const updates = /* @__PURE__ */ new Map();
+    for (const [id, l] of refs) {
+      const node = await figma.getNodeByIdAsync(id);
+      if (!node || node.removed || node.type === "PAGE" || node.type === "DOCUMENT" || hasGeneratedAncestor(node)) continue;
+      const selected = link.ids.includes(id);
+      const short = node.name.split("/").pop() || "";
+      const unnamed = isDefaultName(short.replace(/-/g, " ")) || /needs.identification|\d+x\d+/i.test(short);
+      if (!selected && (!match || node.getPluginData("dsf.semanticName") || !unnamed)) continue;
+      const f = selected ? base : shapeFeatures(node);
+      if (!selected && (!base.geometry || !base.complete || !f.complete || f.geometry !== base.geometry)) continue;
+      const traits = structured ? { identity: structured.identity, appearance: { ...structured.appearance } } : null;
+      if (traits && !selected && JSON.stringify(base.palette) !== JSON.stringify(f.palette)) traits.appearance.color = "recolored";
+      if (traits && !selected && base.stroke && f.stroke) {
+        if (f.stroke / base.stroke > 1.2) traits.appearance.treatment = "thick-outline";
+        else if (f.stroke / base.stroke < 0.8) traits.appearance.treatment = "thin-outline";
+      }
+      updates.set(id, { node, name: traits ? assetName(traits) : selected ? clean2 : variationName(clean2, base, f), link: l, assetName: traits });
+    }
+    const captions = [];
+    const cellUpdates = [];
+    for (const c of cells) {
+      const l = readLink(c), u = l.ids.map((id) => updates.get(id)).find(Boolean);
+      if (!u) continue;
+      cellUpdates.push({ node: c, name: u.name });
+      if ("findAll" in c) for (const t of c.findAll((n) => n.type === "TEXT" && n.getPluginData(CAPTION) === "1")) {
+        const fonts = t.fontName === figma.mixed ? t.getRangeAllFontNames(0, t.characters.length) : [t.fontName];
+        for (const f of fonts) await figma.loadFontAsync(f);
+        captions.push({ node: t, name: u.name });
+      }
+    }
+    if (selectedSheetCell()?.id !== cellId) throw Error("Selection changed. Select the contact-sheet item again.");
+    const undo = [];
+    const pd = (n, k, v) => {
+      const old = n.getPluginData(k);
+      undo.push(() => n.setPluginData(k, old));
+      n.setPluginData(k, v);
+    };
+    const rename = (n, v) => {
+      const old = n.name;
+      undo.push(() => {
+        n.name = old;
+      });
+      n.name = v;
+    };
+    try {
+      for (const u of updates.values()) {
+        if (!u.node.getPluginData(PD_ORIGINAL)) pd(u.node, PD_ORIGINAL, u.node.name);
+        pd(u.node, "dsf.semanticName", u.name);
+        pd(u.node, "dsf.assetName", u.assetName ? JSON.stringify(u.assetName) : "");
+        pd(u.node, PD_CATEGORY, u.link.category);
+        if (!(u.node.type === "COMPONENT" && u.node.parent?.type === "COMPONENT_SET")) rename(u.node, `${u.link.prefix}${u.link.category}/${u.name}`);
+      }
+      for (const u of cellUpdates) rename(u.node, u.name);
+      for (const u of captions) {
+        const old = u.node.characters;
+        undo.push(() => {
+          u.node.characters = old;
+        });
+        u.node.characters = u.name;
+      }
+    } catch (e) {
+      for (const restore of undo.reverse()) try {
+        restore();
+      } catch {
+      }
+      throw e;
+    }
+    return { sources: updates.size, sheets: cellUpdates.length, name: clean2, assetName: structured };
+  }
+  async function exportSheetReference(cellId, name, metadata) {
+    const cell = selectedSheetCell();
+    if (!cell || cell.id !== cellId) throw Error("Select the contact-sheet item again.");
+    const link = readLink(cell), node = await figma.getNodeByIdAsync(link.ids[0]);
+    if (!node || node.removed || node.type === "PAGE" || node.type === "DOCUMENT" || hasGeneratedAncestor(node)) throw Error("Original artwork is unavailable.");
+    const structured = metadata === void 0 ? readAssetName(node) : normalizeAssetName(metadata);
+    const clean2 = structured ? assetName(structured) : slug(name, 100);
+    if (!clean2) throw Error("Enter the approved reference name first.");
+    const n = node;
+    const image = await n.exportAsync({ format: "PNG", constraint: { type: n.width >= n.height ? "WIDTH" : "HEIGHT", value: 320 }, useAbsoluteBounds: true });
+    return { name: clean2, assetName: structured, kind: link.category, what: "Approved from a contact-sheet selection", image: figma.base64Encode(image), features: shapeFeatures(n) };
+  }
+
+  // src/logo-composition.ts
+  function proposeLogoRegions(root) {
+    const bounds = ("absoluteRenderBounds" in root ? root.absoluteRenderBounds : null) || root.absoluteBoundingBox;
+    if (!bounds || bounds.width <= 0 || bounds.height <= 0) throw Error("Artwork has no visible bounds.");
+    const out = [];
+    const visit = (n, depth) => {
+      if (n.visible === false) return;
+      const kids = "children" in n ? n.children.filter((k) => k.visible !== false) : [];
+      const hasText = (v) => v.type === "TEXT" || "children" in v && v.children.some(hasText);
+      if (kids.length && depth < 4 && (n === root || hasText(n))) {
+        for (const k of kids) visit(k, depth + 1);
+        return;
+      }
+      const b = ("absoluteRenderBounds" in n ? n.absoluteRenderBounds : null) || n.absoluteBoundingBox;
+      if (!b) return;
+      if (out.length >= 48) throw Error("Too many regions. Select a smaller logo group (up to 48 regions).");
+      out.push({ id: n.id, name: n.name, text: n.type === "TEXT" ? n.characters.slice(0, 200) : "", role: n.type === "TEXT" ? "signature" : /\b(mark|symbol|logotype)\b/i.test(n.name) ? "symbol" : "unknown", x: (b.x - bounds.x) / bounds.width, y: (b.y - bounds.y) / bounds.height, width: b.width / bounds.width, height: b.height / bounds.height, features: shapeFeatures(n) });
+    };
+    visit(root, 0);
+    return out;
+  }
+  function logoArrangement(regions) {
+    const union = (role) => {
+      const r = regions.filter((n) => n.role === role);
+      if (!r.length) return null;
+      const x = Math.min(...r.map((n) => n.x)), y = Math.min(...r.map((n) => n.y));
+      return { x, y, width: Math.max(...r.map((n) => n.x + n.width)) - x, height: Math.max(...r.map((n) => n.y + n.height)) - y };
+    };
+    const a = union("symbol"), b = union("signature");
+    if (!a) return "signature-only";
+    if (!b) return "symbol-only";
+    const overlap = Math.max(0, Math.min(a.x + a.width, b.x + b.width) - Math.max(a.x, b.x)) * Math.max(0, Math.min(a.y + a.height, b.y + b.height) - Math.max(a.y, b.y));
+    if (overlap > Math.min(a.width * a.height, b.width * b.height) * 0.1) return "overlapping";
+    return Math.abs(a.x + a.width / 2 - b.x - b.width / 2) > Math.abs(a.y + a.height / 2 - b.y - b.height / 2) ? "horizontal" : "stacked";
+  }
+  async function source() {
+    if (figma.currentPage.selection.length !== 1) throw Error("Select one original logo group or linked sheet item.");
+    const cell = selectedSheetCell();
+    const selected = figma.currentPage.selection[0];
+    const n = cell ? await figma.getNodeByIdAsync(JSON.parse(cell.getPluginData("dsf.sheetSource")).ids[0]) : selected;
+    if (!n || n.removed || n.type === "PAGE" || n.type === "DOCUMENT" || hasGeneratedAncestor(n)) throw Error("Select original artwork or a linked sheet item.");
+    if (logoUiCategory(n)) throw Error("This is a UI control. Select its embedded brand mark instead.");
+    return n;
+  }
+  async function inspectLogo() {
+    const n = await source(), regions = proposeLogoRegions(n);
+    const image = figma.base64Encode(await n.exportAsync({ format: "PNG", constraint: { type: n.width >= n.height ? "WIDTH" : "HEIGHT", value: 480 }, useAbsoluteBounds: true }));
+    const snapshot = identityHash(JSON.stringify([n.id, regions, image]));
+    let saved;
+    try {
+      saved = JSON.parse(n.getPluginData("dsf.logoComposition"));
+    } catch {
+    }
+    if (saved?.snapshot === snapshot) for (const r of regions) {
+      const old = saved.regions.find((x) => x.id === r.id);
+      if (old) {
+        r.role = old.role;
+        r.text = old.text;
+      }
+    }
+    return { nodeId: n.id, name: n.getPluginData("dsf.semanticName") || n.name, image, regions, snapshot };
+  }
+  async function saveLogo(msg) {
+    const fresh = await inspectLogo();
+    if (fresh.nodeId !== msg.nodeId || fresh.snapshot !== msg.snapshot) throw Error("Selection or artwork changed. Inspect it again before saving.");
+    const name = String(msg.name || "").trim().slice(0, 200);
+    if (!name) throw Error("Enter the approved logo name.");
+    if (!Array.isArray(msg.regions) || msg.regions.length !== fresh.regions.length || new Set(msg.regions.map((r) => r.id)).size !== fresh.regions.length) throw Error("Inspect the regions again.");
+    const regions = fresh.regions.map((r) => {
+      const edit = msg.regions.find((e) => e.id === r.id);
+      if (!edit || !["symbol", "signature", "ignore"].includes(edit.role)) throw Error("Assign every region a role or Ignore before saving.");
+      return { ...r, role: edit.role, text: String(edit.text || "").slice(0, 200) };
+    });
+    if (!regions.some((r) => r.role === "symbol" || r.role === "signature")) throw Error("Identify at least one symbol or signature region.");
+    const composition = { version: 1, arrangement: logoArrangement(regions), regions };
+    const n = await source();
+    if (n.id !== fresh.nodeId) throw Error("Selection changed. Inspect again.");
+    const features = shapeFeatures(n);
+    n.setPluginData("dsf.logoComposition", JSON.stringify({ ...composition, snapshot: fresh.snapshot }));
+    return { name, kind: "logo", what: "Human-reviewed logo composition: " + composition.arrangement, image: fresh.image, features, composition };
+  }
+
+  // src/layout-meta.ts
+  function layoutMetadata(node) {
+    const p = node.parent;
+    const a = node;
+    const meta = {
+      nodeId: node.id,
+      parentId: p?.id,
+      zIndex: p && "children" in p ? p.children.indexOf(node) : 0,
+      rotation: "rotation" in node ? node.rotation : 0,
+      aspectRatio: node.height > 0 ? node.width / node.height : 0,
+      absoluteBounds: node.absoluteBoundingBox ? { ...node.absoluteBoundingBox } : void 0
+    };
+    if (p && "width" in p && p.width > 0 && p.height > 0) {
+      const t = node.relativeTransform;
+      meta.normalizedBounds = { x: t[0][2] / p.width, y: t[1][2] / p.height, width: node.width / p.width, height: node.height / p.height };
+    }
+    if ("constraints" in node) meta.constraints = node.constraints;
+    if ("layoutMode" in node) {
+      meta.autoLayout = a.layoutMode;
+      meta.padding = [a.paddingTop, a.paddingRight, a.paddingBottom, a.paddingLeft];
+      meta.gap = a.itemSpacing;
+      meta.alignment = { primary: a.primaryAxisAlignItems, counter: a.counterAxisAlignItems };
+    }
+    meta.sizingHorizontal = a.layoutSizingHorizontal;
+    meta.sizingVertical = a.layoutSizingVertical;
+    if ("componentProperties" in node) meta.componentProperties = node.componentProperties;
+    meta.styles = { fill: a.fillStyleId, stroke: a.strokeStyleId, effect: a.effectStyleId };
+    if ("boundVariables" in node) meta.variables = node.boundVariables;
+    return meta;
+  }
+
   // src/scan.ts
   var SKIP_TYPES = /* @__PURE__ */ new Set(["SLICE", "STICKY", "CONNECTOR", "SHAPE_WITH_TEXT", "CODE_BLOCK", "WIDGET", "EMBED", "LINK_UNFURL", "MEDIA", "TABLE"]);
   async function scan(scope, baseGrid) {
@@ -628,6 +1193,7 @@
     const spacing = /* @__PURE__ */ new Map();
     const radii = /* @__PURE__ */ new Map();
     const effects = /* @__PURE__ */ new Map();
+    const artworkParts = [];
     const elements = [];
     const icons = [];
     const shapes = [];
@@ -706,11 +1272,11 @@
       const t = effects.get(key);
       if (t) t.count++;
       else {
-        const clean = vis.map((e) => {
+        const clean2 = vis.map((e) => {
           const { boundVariables, ...rest } = e;
           return rest;
         });
-        effects.set(key, { key, effects: clean, count: 1, name: "", css: vis.map(effectCss).filter(Boolean).join(", ") });
+        effects.set(key, { key, effects: clean2, count: 1, name: "", css: vis.map(effectCss).filter(Boolean).join(", ") });
       }
     };
     const textRoleOf = (node) => {
@@ -751,7 +1317,7 @@
       if (cancelled) throw new Error("cancelled");
       const item = stack.pop();
       const node = item.node;
-      if (SKIP_TYPES.has(node.type) || node.removed) continue;
+      if (SKIP_TYPES.has(node.type) || node.removed || hasGeneratedAncestor(node)) continue;
       visited++;
       sinceTick++;
       if (sinceTick >= 400) {
@@ -783,7 +1349,7 @@
         if (typeof f.itemSpacing === "number" && f.primaryAxisAlignItems !== "SPACE_BETWEEN") addSpace(f.itemSpacing);
         if (f.layoutWrap === "WRAP" && typeof f.counterAxisSpacing === "number") addSpace(f.counterAxisSpacing);
       }
-      if (node.type === "INSTANCE") {
+      if (node.type === "INSTANCE" && !item.artworkOwner) {
         try {
           const mc = await node.getMainComponentAsync();
           if (mc) {
@@ -797,12 +1363,23 @@
       }
       let textRole = "";
       if (node.type === "TEXT") textRole = textRoleOf(node);
-      const cls = classify(node, item.ctx);
-      if (cls.category !== "other") {
+      const cls = item.artworkOwner ? { category: "other", text: "", fillHex: null, strokeHex: null, fingerprint: "", desc: "" } : classify(node, item.ctx);
+      const savedCategory = node.getPluginData("dsf.category");
+      if (!item.artworkOwner && (savedCategory !== "debris" || node.getPluginData("dsf.semanticName"))) cls.category = resolvedCategory(savedCategory, cls.category);
+      if (!item.artworkOwner && cls.category === "logo") cls.category = logoUiCategory(node) || cls.category;
+      if (!item.artworkOwner && readAssetName(node)?.appearance.crop && cls.category === "debris") cls.category = "symbol";
+      const boundary = !item.artworkOwner && artworkBoundary(node, cls.category);
+      const artContainer = "children" in node && ["icon", "logo", "character", "illustration", "symbol"].includes(cls.category);
+      if (item.artworkOwner) artworkParts.push({ nodeId: node.id, ownerId: item.artworkOwner, name: node.name, nodeType: node.type, layout: layoutMetadata(node) });
+      if (!item.artworkOwner && (!artContainer || boundary) && (cls.category !== "other" || node.type === "COMPONENT" || node.type === "INSTANCE" || node.type === "COMPONENT_SET")) {
         const rec = {
           id: node.id,
+          nodeType: node.type,
+          ...["icon", "logo", "character", "illustration", "symbol"].includes(cls.category) ? artworkRole(node) : {},
+          assetName: readAssetName(node),
           category: cls.category,
           name: node.name,
+          semanticName: node.getPluginData("dsf.semanticName") || void 0,
           text: cls.text.slice(0, 80),
           w: node.width,
           h: node.height,
@@ -812,30 +1389,24 @@
           sizeClass: sizeClass(node.height),
           textRole,
           desc: cls.desc,
-          page: item.page
+          page: item.page,
+          identity: extractIdentity(node),
+          layout: layoutMetadata(node)
         };
         if (cls.category === "icon") icons.push(rec);
         else if (cls.category === "shape") {
           if (shapes.length < 4e3) shapes.push(rec);
         } else elements.push(rec);
       }
-      if ("children" in node && cls.category !== "icon") {
-        const kids = node.children;
-        const pw = node.width, ph = node.height;
-        for (let i = kids.length - 1; i >= 0; i--) {
-          const k = kids[i];
-          stack.push({ node: k, ctx: { parentW: pw, parentH: ph, yInParent: k.y, topLevel: false }, inInstance: inInstance || node.type === "INSTANCE", page: item.page });
-        }
-      } else if ("children" in node && cls.category === "icon") {
-        const inner = [...node.children];
-        while (inner.length) {
-          const k = inner.pop();
-          if ("fills" in k) addPaints(k.fills);
-          if ("strokes" in k) addPaints(k.strokes, true, k.strokeWeight);
-          if ("children" in k) inner.push(...k.children);
+      if ("children" in node) {
+        for (let i = node.children.length - 1; i >= 0; i--) {
+          const k = node.children[i];
+          stack.push({ node: k, ctx: { parentW: node.width, parentH: node.height, yInParent: k.y, topLevel: false }, inInstance: inInstance || node.type === "INSTANCE", page: item.page, artworkOwner: item.artworkOwner || (boundary ? node.id : void 0) });
         }
       }
     }
+    const roles = new Map([...elements, ...icons, ...shapes].map((r) => [r.id, r.category]));
+    for (const r of [...elements, ...icons, ...shapes]) if (r.layout?.parentId) r.layout.parentSemanticRole = roles.get(r.layout.parentId);
     progress(90, "Naming tokens\u2026");
     await tick();
     const namedColors = nameColors([...colors.values()]);
@@ -849,6 +1420,7 @@
     for (const t of namedTypes) typeName.set(t.key, t.name);
     for (const e of elements) if (e.category === "text" && e.textRole) e.textRole = typeName.get(e.textRole) || "body";
     const inv = {
+      artworkParts,
       scope,
       pages,
       pageIds,
@@ -867,6 +1439,11 @@
     };
     progress(100, "Scan complete");
     return inv;
+  }
+
+  // src/asset-review.ts
+  function exportAssetMap(map) {
+    return JSON.stringify({ ...map, assets: map.assets.map((f) => ({ ...f, variants: f.variants.map(({ image, ...v }) => v) })) }, null, 2);
   }
 
   // src/tokens.ts
@@ -890,8 +1467,8 @@
   function buildTokenFiles(inv, opts, result) {
     const files = {};
     const generatedAt = (/* @__PURE__ */ new Date()).toISOString();
-    const source = { plugin: "DS Foundry", version: "1.4.0", generatedAt, scope: inv.scope, pages: inv.pages };
-    const dtcg = { $schema: "https://tr.designtokens.org/format/", $extensions: { "com.cogspa.dsfoundry": source } };
+    const source2 = { plugin: "DS Foundry", version: "1.5.0", generatedAt, scope: inv.scope, pages: inv.pages };
+    const dtcg = { $schema: "https://tr.designtokens.org/format/", $extensions: { "com.cogspa.dsfoundry": source2 } };
     for (const c of inv.colors) {
       setDeep(dtcg, ["color", ...c.name.split("/")], { $type: "color", $value: rgbaCss(c.r, c.g, c.b, c.a), $extensions: { usage: c.count } });
     }
@@ -917,7 +1494,7 @@
           $extensions: { usage: e.count }
         });
       } else {
-        setDeep(dtcg, ["blur", ...e.name.split("/")], { $type: "dimension", $value: `${round(e.effects[0].radius)}px`, $extensions: { usage: e.count } });
+        setDeep(dtcg, ["blur", ...e.name.split("/")], { $type: "dimension", $value: `${round("radius" in e.effects[0] ? e.effects[0].radius : 0)}px`, $extensions: { usage: e.count } });
       }
     }
     for (const t of inv.types) {
@@ -1002,12 +1579,17 @@ module.exports = ${JSON.stringify(tw, null, 2)};
     if (inv.missingFonts.length) md.push("", `> Missing fonts: ${inv.missingFonts.join(", ")} \u2014 text styles for these were skipped.`);
     files["DESIGN_SYSTEM.md"] = md.join("\n") + "\n";
     files["inventory.json"] = JSON.stringify({
-      source,
+      source: source2,
       elements: inv.elements.map((e) => ({ id: e.id, page: e.page, category: e.category, name: e.name, text: e.text, w: round(e.w), h: round(e.h), fillRole: e.fillRole, size: e.sizeClass, inInstance: e.inInstance })),
       icons: inv.icons.map((e) => ({ id: e.id, page: e.page, name: e.name, w: round(e.w), h: round(e.h) })),
       components: inv.components,
       fonts: inv.fonts
     }, null, 2);
+    if (inv.assetMap) files["asset-map.json"] = exportAssetMap(inv.assetMap);
+    const canonical = new Map((inv.assetMap?.assets || []).flatMap((f) => f.variants.map((v) => [v.nodeId, { assetId: f.assetId, variantId: v.variantId, status: f.status }])));
+    files["layout-metadata.json"] = JSON.stringify({ schemaVersion: 1, elements: [...inv.elements, ...inv.icons, ...inv.shapes].map((r) => ({ nodeId: r.id, category: r.category, layout: r.layout, canonical: canonical.get(r.id) })) }, null, 2);
+    files["asset-identities.json"] = JSON.stringify({ schemaVersion: 1, assets: [...inv.elements, ...inv.icons, ...inv.shapes].filter((r) => r.assetName).map((r) => ({ nodeId: r.id, name: r.semanticName, kind: r.category, ...r.assetName })) }, null, 2);
+    files["artwork-parts.json"] = JSON.stringify({ schemaVersion: 1, artwork: [...inv.elements, ...inv.icons, ...inv.shapes].filter((r) => r.artworkRole).map((r) => ({ nodeId: r.id, role: r.artworkRole, partOf: r.partOf })), parts: inv.artworkParts || [] }, null, 2);
     return files;
   }
 
@@ -1150,8 +1732,8 @@ module.exports = ${JSON.stringify(tw, null, 2)};
       if (!node) continue;
       try {
         if (!node.getPluginData(PD_ORIGINAL)) node.setPluginData(PD_ORIGINAL, node.name);
-        node.setPluginData(PD_CATEGORY, rec.category);
-        if (opts.rename && !node.name.startsWith(opts.prefix)) node.name = elementLabel(rec, opts.prefix);
+        if (!node.getPluginData(PD_CATEGORY)) node.setPluginData(PD_CATEGORY, rec.category);
+        if (opts.rename && !node.getPluginData("dsf.semanticName") && !node.name.startsWith(opts.prefix)) node.name = elementLabel(rec, opts.prefix);
         n++;
       } catch {
       }
@@ -1172,6 +1754,8 @@ module.exports = ${JSON.stringify(tw, null, 2)};
           node.name = node.getPluginData(PD_ORIGINAL);
           node.setPluginData(PD_ORIGINAL, "");
           node.setPluginData(PD_CATEGORY, "");
+          node.setPluginData("dsf.semanticName", "");
+          node.setPluginData("dsf.assetName", "");
           n++;
         } catch {
         }
@@ -1460,8 +2044,8 @@ module.exports = ${JSON.stringify(tw, null, 2)};
       const seen = /* @__PURE__ */ new Set();
       const picks = [];
       for (const r of pool) {
-        if (seen.has(r.fingerprint)) continue;
-        seen.add(r.fingerprint);
+        if (seen.has(appearanceKey(r))) continue;
+        seen.add(appearanceKey(r));
         picks.push(r);
         if (picks.length >= (COMPONENT_LIMIT[cat] || 6)) break;
       }
@@ -1484,7 +2068,7 @@ module.exports = ${JSON.stringify(tw, null, 2)};
         try {
           stage.appendChild(clone);
           unlockSizing(clone);
-          const comp = figma.createComponentFromNode(clone);
+          const comp = clone.type === "COMPONENT" ? clone : figma.createComponentFromNode(clone);
           comp.name = names[i];
           comp.description = `From "${picks[i].name}" on page "${picks[i].page}"${picks[i].text ? ` \u2014 "${picks[i].text}"` : ""}`;
           comp.setPluginData(PD_GENERATED, "1");
@@ -1559,8 +2143,8 @@ module.exports = ${JSON.stringify(tw, null, 2)};
     const seen = /* @__PURE__ */ new Set();
     const picks = [];
     for (const r of inv.icons) {
-      if (r.inInstance || seen.has(r.fingerprint)) continue;
-      seen.add(r.fingerprint);
+      if (r.inInstance || r.artworkRole === "part" || seen.has(appearanceKey(r))) continue;
+      seen.add(appearanceKey(r));
       picks.push(r);
       if (picks.length >= 240) break;
     }
@@ -1583,7 +2167,7 @@ module.exports = ${JSON.stringify(tw, null, 2)};
       }
       try {
         const size = Math.max(16, Math.ceil(Math.max(clone.width, clone.height) / 4) * 4);
-        const cell = mkFrame(rec.name, { dir: "V", gap: 6, align: "CENTER" });
+        const cell = mkFrame(rec.name, { dir: "V", pad: 12, gap: 6, align: "CENTER", fill: { r: 0.82, g: 0.82, b: 0.82 } });
         grid.appendChild(cell);
         const box = figma.createFrame();
         box.resize(size, size);
@@ -1595,14 +2179,16 @@ module.exports = ${JSON.stringify(tw, null, 2)};
         clone.x = (size - clone.width) / 2;
         clone.y = (size - clone.height) / 2;
         const comp = figma.createComponentFromNode(box);
-        let name = `${opts.prefix}icon/${slug(rec.name)}`;
+        let name = `${opts.prefix}icon/${slug(sheetName(rec, opts.prefix))}`;
         let n = 2;
-        while (usedNames.has(name)) name = `${opts.prefix}icon/${slug(rec.name)}-${n++}`;
+        while (usedNames.has(name)) name = `${opts.prefix}icon/${slug(sheetName(rec, opts.prefix))}-${n++}`;
         usedNames.add(name);
         comp.name = name;
         comp.description = `${size}\xD7${size} \xB7 from page "${rec.page}"`;
         comp.setPluginData(PD_GENERATED, "1");
-        cell.appendChild(await mkText(slug(rec.name).slice(0, 18), { size: 9, color: MUTED }));
+        const caption = await mkText(sheetName(rec, opts.prefix), { size: 9, color: MUTED });
+        cell.appendChild(caption);
+        linkSheetCell(cell, inv.icons.filter((r) => appearanceKey(r) === appearanceKey(rec)).map((r) => r.id), caption, rec.category, opts.prefix);
         count++;
       } catch {
         try {
@@ -1619,57 +2205,56 @@ module.exports = ${JSON.stringify(tw, null, 2)};
     return { page, count };
   }
   var ASSET_SECTIONS = [
+    { key: "parts", title: "Artwork parts", cats: [], cap: 120, kind: "vector" },
     { key: "logos", title: "Logos", cats: ["logo"], cap: 40, kind: "vector" },
     { key: "characters", title: "Characters", cats: ["character"], cap: 60, kind: "vector" },
     { key: "illustrations", title: "Illustrations", cats: ["illustration"], cap: 60, kind: "vector" },
     { key: "symbols", title: "Symbols & ornaments", cats: ["symbol"], cap: 80, kind: "vector" },
     { key: "icons", title: "Icons", cats: ["icon"], cap: 240, kind: "vector" },
-    { key: "buttons", title: "Buttons & badges", cats: ["button", "badge"], cap: 40, kind: "vector" },
+    { key: "components", title: "Components", cats: ["button", "badge", "input", "checkbox", "toggle", "card", "list-item", "nav", "other"], cap: 120, kind: "vector" },
     { key: "taglines", title: "Taglines", cats: ["tagline"], cap: 80, kind: "text" },
     { key: "copy", title: "Copy", cats: ["copy"], cap: 40, kind: "text" },
     { key: "vectors", title: "Vectors & shapes", cats: ["shape"], cap: 120, kind: "vector" },
-    { key: "debris", title: "Debris", cats: ["debris"], cap: 300, kind: "list" }
+    { key: "debris", title: "Possible vector debris", cats: ["debris"], cap: 300, kind: "vector" }
   ];
-  function stripPrefix(name, prefix) {
-    return prefix && name.startsWith(prefix) ? name.slice(prefix.length) : name;
-  }
   async function buildAssets(inv, opts, notes) {
     const page = await getOrCreatePage("DS \xB7 Assets");
     const cursor = { y: 0 };
     let count = 0;
-    const pool = [...inv.elements, ...inv.icons, ...inv.shapes].filter((r) => !r.inInstance);
+    const pool = [...inv.elements, ...inv.icons, ...inv.shapes].filter((r) => !r.inInstance || r.nodeType === "INSTANCE");
     const resolved = [];
     for (let i = 0; i < pool.length; i++) {
       if (cancelled) throw new Error("cancelled");
       const rec = pool[i];
       const node = await nodeById(rec.id);
       if (!node) continue;
-      const pd = node.getPluginData(PD_CATEGORY);
-      resolved.push({ rec, node, cat: pd || rec.category });
+      resolved.push({ rec, node, cat: rec.category });
       if (i % 300 === 0) {
         progress(80 + i / pool.length * 6, `Sorting assets\u2026 ${i}/${pool.length}`);
         await tick();
       }
     }
-    const intro = await mkSection("Assets", `Every logo, character, illustration, symbol, icon, button, tagline, copy block and vector in the scanned scope, grouped by class and named. Debris is listed so it can be selected and deleted from the plugin.`, page, cursor);
+    const intro = await mkSection("Assets", `Every logo, character, illustration, symbol, icon, button, tagline, copy block and vector in the scanned scope, grouped by class and named. Possible debris is shown for review; source artwork is retained. Unrecognized artwork is marked Needs identification.`, page, cursor);
     intro.section.name = "Assets \xB7 index";
     const idx = mkFrame("index", { dir: "H", gap: 24, wrap: true, w: 1160 });
     for (const sec of ASSET_SECTIONS) {
-      const n = resolved.filter((r) => sec.cats.includes(r.cat)).length;
+      const n = resolved.filter((r) => sec.key === "parts" ? r.rec.artworkRole === "part" : r.rec.artworkRole !== "part" && sec.cats.includes(r.cat)).length;
       idx.appendChild(await mkText(`${sec.title} \xB7 ${n}`, { size: 12, color: n ? INK : MUTED }));
     }
     intro.body.appendChild(idx);
     finishSection(intro.section, cursor);
     for (const sec of ASSET_SECTIONS) {
       if (cancelled) throw new Error("cancelled");
-      let items = resolved.filter((r) => sec.cats.includes(r.cat));
+      let items = resolved.filter((r) => sec.key === "parts" ? r.rec.artworkRole === "part" : r.rec.artworkRole !== "part" && sec.cats.includes(r.cat));
       if (!items.length) continue;
       const seen = /* @__PURE__ */ new Map();
       for (const it of items) {
-        const k = sec.kind === "text" ? `${it.cat}|${it.rec.text.slice(0, 80)}` : `${it.cat}|${it.node.name}|${it.rec.fingerprint}`;
+        const k = sec.kind === "text" ? `${it.cat}|${it.rec.text.slice(0, 80)}` : `${it.cat}|${sheetName(it.rec, opts.prefix)}|${appearanceKey(it.rec)}`;
         const g = seen.get(k);
-        if (g) g.n++;
-        else seen.set(k, { ...it, n: 1 });
+        if (g) {
+          g.n++;
+          g.ids.push(it.rec.id);
+        } else seen.set(k, { ...it, n: 1, ids: [it.rec.id] });
       }
       const distinct = [...seen.values()].sort((a, b) => a.node.name.localeCompare(b.node.name)).slice(0, sec.cap);
       progress(86, `Assets \xB7 ${sec.title}\u2026`);
@@ -1679,7 +2264,7 @@ module.exports = ${JSON.stringify(tw, null, 2)};
       if (sec.kind === "list") {
         const col = mkFrame("list", { dir: "V", gap: 4 });
         for (const d of distinct) {
-          col.appendChild(await mkText(`${stripPrefix(d.node.name, opts.prefix)} \xB7 ${Math.round(d.rec.w)}\xD7${Math.round(d.rec.h)} \xB7 ${d.rec.page}${d.n > 1 ? ` \xB7 \xD7${d.n}` : ""}`, { size: 10, color: MUTED }));
+          col.appendChild(await mkText(`${sheetName(d.rec, opts.prefix)} \xB7 ${Math.round(d.rec.w)}\xD7${Math.round(d.rec.h)} \xB7 ${d.rec.page}${d.n > 1 ? ` \xB7 \xD7${d.n}` : ""}`, { size: 10, color: MUTED }));
         }
         body.appendChild(col);
         body.appendChild(await mkText(`Tip: in the plugin's Elements tab, "Select debris" selects these on the current page so you can delete them.`, { size: 10, color: MUTED }));
@@ -1688,15 +2273,17 @@ module.exports = ${JSON.stringify(tw, null, 2)};
       }
       const grid = mkFrame("grid", { dir: "H", gap: 24, wrap: true, w: 1160, align: "MIN" });
       body.appendChild(grid);
+      if (sec.key === "debris") body.appendChild(await mkText("Possible debris \xB7 inspect before deleting. Hidden and empty paths may have no visible preview.", { size: 10, color: MUTED }));
       for (const d of distinct) {
         let clone;
         try {
           clone = d.node.clone();
         } catch {
+          notes.push(`Could not copy ${d.node.name} (${d.node.id}) to its contact sheet.`);
           continue;
         }
         try {
-          const cell = mkFrame(stripPrefix(d.node.name, opts.prefix), { dir: "V", gap: 8, align: "MIN" });
+          const cell = mkFrame(sheetName(d.rec, opts.prefix), { dir: "V", pad: 12, gap: 8, align: "MIN", fill: { r: 0.82, g: 0.82, b: 0.82 } });
           grid.appendChild(cell);
           if (sec.kind === "text") {
             cell.appendChild(clone);
@@ -1725,19 +2312,22 @@ module.exports = ${JSON.stringify(tw, null, 2)};
               } catch {
               }
             }
-            clone.x = 0;
-            clone.y = 0;
+            clone.x = (box.width - clone.width) / 2;
+            clone.y = (box.height - clone.height) / 2;
             if (["logos", "characters", "illustrations", "symbols", "icons", "vectors"].includes(sec.key)) {
               const comp = figma.createComponentFromNode(box);
-              comp.name = d.node.name.startsWith(opts.prefix) ? d.node.name : `${opts.prefix}${d.cat}/${slug(d.node.name)}`;
+              comp.name = `${opts.prefix}${d.cat}/${slug(sheetName(d.rec, opts.prefix), 80)}`;
               comp.description = `${d.cat} \xB7 ${Math.round(d.rec.w)}\xD7${Math.round(d.rec.h)} \xB7 from "${d.rec.page}"`;
               comp.setPluginData(PD_GENERATED, "1");
             }
           }
-          cell.appendChild(await mkText(stripPrefix(d.node.name, opts.prefix), { bold: true, size: 10 }));
+          const caption = await mkText(sheetName(d.rec, opts.prefix), { bold: true, size: 10 });
+          cell.appendChild(caption);
+          linkSheetCell(cell, d.ids, caption, d.cat, opts.prefix);
           cell.appendChild(await mkText(`${Math.round(d.rec.w)}\xD7${Math.round(d.rec.h)}${d.n > 1 ? ` \xB7 \xD7${d.n}` : ""}`, { size: 9, color: MUTED }));
           count++;
-        } catch {
+        } catch (e) {
+          notes.push(`Could not place ${d.node.name} (${d.node.id}): ${String(e)}`);
           try {
             clone.remove();
           } catch {
@@ -1787,6 +2377,8 @@ module.exports = ${JSON.stringify(tw, null, 2)};
   async function build(inv, opts) {
     const notes = [];
     const res = { paintStyles: 0, textStyles: 0, effectStyles: 0, variables: 0, labeled: 0, componentSets: 0, components: 0, icons: 0, assets: 0, pages: [], notes };
+    await refreshIdentifications(inv);
+    if (!inv.elements.length && !inv.icons.length && !inv.shapes.length) throw new Error("No source artwork in this scan. Select the original design page or use Document scope, then scan again.");
     await loadFont(UI_FONT);
     await loadFont(UI_BOLD);
     if (opts.labels) {
@@ -1897,10 +2489,10 @@ module.exports = ${JSON.stringify(tw, null, 2)};
   function pickDistinct(list, limit) {
     const groups = /* @__PURE__ */ new Map();
     for (const r of list) {
-      if (r.inInstance) continue;
-      const g = groups.get(r.fingerprint);
+      if (r.inInstance && r.nodeType !== "INSTANCE") continue;
+      const g = groups.get(appearanceKey(r));
       if (g) g.ids.push(r.id);
-      else groups.set(r.fingerprint, { rec: r, ids: [r.id] });
+      else groups.set(appearanceKey(r), { rec: r, ids: [r.id] });
     }
     return [...groups.values()].slice(0, limit);
   }
@@ -1926,8 +2518,9 @@ module.exports = ${JSON.stringify(tw, null, 2)};
     if (targets.screens) for (const g of pickDistinct(inv.elements.filter((e) => e.category === "screen" || e.category === "section" || e.category === "nav"), cap(200))) plan.push({ rec: g.rec, ids: g.ids, category: g.rec.category, name: g.rec.name, text: g.rec.text, page: g.rec.page, size: 384, nodeId: g.rec.id });
     if (targets.cards) for (const g of pickDistinct(inv.elements.filter((e) => e.category === "card" || e.category === "list-item"), cap(200))) plan.push({ rec: g.rec, ids: g.ids, category: g.rec.category, name: g.rec.name, text: g.rec.text, page: g.rec.page, size: 384, nodeId: g.rec.id });
     if (targets.components) {
+      for (const g of pickDistinct(inv.elements.filter((e) => ["button", "input", "badge", "checkbox", "toggle", "other"].includes(e.category)), cap(200))) plan.push({ rec: g.rec, ids: g.ids, category: g.rec.category, name: g.rec.name, text: g.rec.text, page: g.rec.page, size: 384, nodeId: g.rec.id });
       for (const c of inv.components.filter((x) => !x.remote).slice(0, cap(200))) {
-        plan.push({ rec: null, ids: [c.id], category: "component", name: c.name, text: "", page: "", size: 384, nodeId: c.id });
+        if (!plan.some((p) => p.ids.includes(c.id))) plan.push({ rec: null, ids: [c.id], category: "component", name: c.name, text: "", page: "", size: 384, nodeId: c.id });
       }
     }
     if (targets.shapes) for (const g of pickDistinct(inv.shapes, cap(200))) plan.push({ rec: g.rec, ids: g.ids, category: "shape", name: g.rec.name, text: "", page: g.rec.page, size: 256, nodeId: g.rec.id });
@@ -1947,7 +2540,11 @@ module.exports = ${JSON.stringify(tw, null, 2)};
       const exportNode = node.type === "COMPONENT_SET" ? node.defaultVariant : node;
       const png = await exportPng(exportNode, p.size);
       if (!png) continue;
-      chunk.push({ key: p.rec ? p.rec.fingerprint : p.nodeId, ids: p.ids, category: p.category, name: p.name, desc: p.rec ? p.rec.desc : "", text: p.text, w: Math.round(node.width), h: Math.round(node.height), page: p.page, png });
+      const semantic = node.getPluginData("dsf.semanticName");
+      const existing = semantic || node.name.split("/").pop() || "";
+      const meaningful = existing && !/^(vector|group|frame|path|shape|illustration|symbol|icon)([ -]*\d+)?$/i.test(existing) && !/(piece-\d|\d+x\d+|needs.identification)/i.test(existing);
+      const referenceName = meaningful && ["character", "illustration", "logo", "symbol", "icon"].includes(p.category) ? existing : void 0;
+      chunk.push({ assetName: readAssetName(node), referenceName, features: shapeFeatures(exportNode), key: p.rec ? appearanceKey(p.rec) : p.nodeId, ids: p.ids, category: p.category, name: p.name, desc: p.rec ? p.rec.desc : "", text: p.text, w: Math.round(node.width), h: Math.round(node.height), page: p.page, png });
       sent++;
       if (chunk.length >= 6 || i === plan.length - 1) {
         post({ type: "ai_items", items: chunk, sent, total: plan.length });
@@ -1955,6 +2552,7 @@ module.exports = ${JSON.stringify(tw, null, 2)};
         await tick();
       }
     }
+    if (chunk.length) post({ type: "ai_items", items: chunk, sent, total: plan.length });
     post({ type: "ai_items", items: [], sent, total: plan.length, done: true });
     return sent;
   }
@@ -1973,6 +2571,9 @@ module.exports = ${JSON.stringify(tw, null, 2)};
     "list-item": "list-item",
     button: "button",
     badge: "badge",
+    input: "input",
+    checkbox: "checkbox",
+    toggle: "toggle",
     tagline: "tagline",
     copy: "copy",
     shape: "shape",
@@ -1984,18 +2585,22 @@ module.exports = ${JSON.stringify(tw, null, 2)};
     for (let i = 0; i < renames.length; i++) {
       if (cancelled) throw new Error("cancelled");
       const r = renames[i];
-      const clean = slug(r.name, 40);
-      if (!clean) continue;
+      const structured = normalizeAssetName(r.assetName);
+      const clean2 = structured ? assetName(structured) : slug(r.name, 100);
+      if (!clean2) continue;
       const cat = r.kind && PATH_FOR[r.kind] !== void 0 ? r.kind : r.category;
-      const path = PATH_FOR[cat] ?? cat;
-      const finalName = usePrefix ? `${prefix}${path ? path + "/" : ""}${clean}` : clean;
       for (const id of r.ids) {
         try {
           const node = await figma.getNodeByIdAsync(id);
           if (!node || node.removed || node.type === "DOCUMENT" || node.type === "PAGE") continue;
           if (node.type === "COMPONENT" && node.parent && node.parent.type === "COMPONENT_SET") continue;
+          const safeCategory = cat === "logo" ? logoUiCategory(node) || cat : cat;
+          const path = PATH_FOR[safeCategory] ?? safeCategory;
+          const finalName = usePrefix ? `${prefix}${path ? path + "/" : ""}${clean2}` : clean2;
           if (!node.getPluginData(PD_ORIGINAL)) node.setPluginData(PD_ORIGINAL, node.name);
-          node.setPluginData(PD_CATEGORY, cat);
+          node.setPluginData(PD_CATEGORY, safeCategory);
+          node.setPluginData("dsf.semanticName", clean2);
+          node.setPluginData("dsf.assetName", structured ? JSON.stringify(structured) : "");
           node.name = finalName;
           n++;
         } catch {
@@ -2009,10 +2614,139 @@ module.exports = ${JSON.stringify(tw, null, 2)};
     return n;
   }
 
+  // src/assets.ts
+  var prepared = /* @__PURE__ */ new Map();
+  var documentId = "";
+  var preparedProject = "";
+  function invalidateAssets() {
+    prepared.clear();
+  }
+  async function prepareAssets(inv, project, semantic = []) {
+    prepared.clear();
+    preparedProject = project;
+    documentId = figma.fileKey || figma.root.getPluginData("dsf.documentId") || "session-" + Date.now().toString(36) + "-" + Math.random().toString(36).slice(2);
+    const byId = new Map(semantic.flatMap((s) => s.ids.map((id) => [id, s])));
+    const thumbs = /* @__PURE__ */ new Map();
+    let exports = 0;
+    const pool = [...inv.elements, ...inv.icons, ...inv.shapes];
+    if (pool.length > 1e4) throw new Error("Canonical resolution supports 10,000 records per scan. Narrow the scope.");
+    for (let i = 0; i < pool.length; i++) {
+      if (cancelled) throw new Error("cancelled");
+      const r = pool[i];
+      const n = await figma.getNodeByIdAsync(r.id);
+      if (!n || n.removed || n.type === "PAGE" || n.type === "DOCUMENT") continue;
+      let generated = false;
+      for (let p = n; p; p = p.parent) if (p.getPluginData(PD_GENERATED) === "1") {
+        generated = true;
+        break;
+      }
+      if (generated || "visible" in n && n.visible === false) continue;
+      const node = n, s = byId.get(r.id);
+      const kind = s?.kind || node.getPluginData(PD_CATEGORY) || r.category;
+      if (kind === "debris" || kind === "other") continue;
+      const features = extractIdentity(node), relationship = await componentRelationship(node);
+      features.componentFamily = relationship.family;
+      const layout = layoutMetadata(node);
+      layout.componentFamily = relationship.family;
+      layout.mainComponentId = relationship.mainComponentId;
+      layout.parentSemanticRole = r.layout?.parentSemanticRole;
+      const it = { nodeId: r.id, kind, name: node.name, semanticName: s?.name || "", description: s?.description || "", fingerprint: r.fingerprint, width: node.width, height: node.height, page: r.page, features, layout };
+      if (node.getPluginData(PD_ASSET_PROJECT) === project) {
+        it.approvedAssetId = node.getPluginData(PD_ASSET_ID) || void 0;
+        try {
+          const old = JSON.parse(node.getPluginData(PD_ASSET_VARIANT));
+          if (old.featureSnapshot === JSON.stringify([features.geometrySignature, features.variant, features.visibleText])) it.approvedVariant = old.variant;
+        } catch {
+        }
+      }
+      const key = features.geometrySignature ? features.geometrySignature + JSON.stringify(features.variant) : r.id;
+      if (thumbs.has(key)) it.image = thumbs.get(key);
+      else if (exports < 400 && node.width > 0 && node.height > 0) {
+        try {
+          const bytes = await node.exportAsync({ format: "PNG", constraint: { type: node.width >= node.height ? "WIDTH" : "HEIGHT", value: 256 } });
+          it.image = figma.base64Encode(bytes);
+          thumbs.set(key, it.image);
+          exports++;
+        } catch {
+          features.warnings.push("Thumbnail unavailable");
+        }
+      }
+      prepared.set(it.nodeId, it);
+      if (i % 25 === 0) {
+        post({ type: "progress", pct: Math.round(i / pool.length * 100), msg: `Canonical features\u2026 ${i}/${pool.length}` });
+        await tick();
+      }
+    }
+    post({ type: "assets_prepared", documentId, items: [...prepared.values()], project, warnings: exports >= 400 ? ["Thumbnail budget: 400 distinct appearances. All feature records retained."] : [] });
+  }
+  async function applyAssets(inv, map, project) {
+    if (project !== preparedProject || map.documentId !== documentId || !prepared.size) throw new Error("Scan/resolve again before applying this review");
+    const seen = /* @__PURE__ */ new Set(), familyIds = /* @__PURE__ */ new Set();
+    const writes = [];
+    for (const f of map.assets) {
+      if (familyIds.has(f.assetId) || !/^[a-z0-9][a-z0-9/_-]{0,199}$/.test(f.assetId)) throw new Error("Invalid or duplicate asset ID");
+      familyIds.add(f.assetId);
+      if (f.referenceNodeId && !f.variants.some((v) => v.nodeId === f.referenceNodeId)) throw new Error("Invalid reference node");
+      for (const v of f.variants) {
+        if (seen.has(v.nodeId) || !prepared.has(v.nodeId) || v.assetId !== f.assetId || v.kind !== f.kind || v.canonicalName !== f.canonicalName) throw new Error("Invalid family membership");
+        seen.add(v.nodeId);
+        if (f.status !== "approved") continue;
+        if (!Number.isFinite(v.identityConfidence) || v.identityConfidence < 0 || v.identityConfidence > 1) throw new Error("Invalid confidence");
+        const node = await figma.getNodeByIdAsync(v.nodeId);
+        if (!node || node.removed || node.type === "PAGE" || node.type === "DOCUMENT") throw new Error("A reviewed node was removed. Resolve again.");
+        const before = prepared.get(v.nodeId);
+        const now = extractIdentity(node);
+        const comparable = (f2) => JSON.stringify([f2.geometrySignature, f2.geometryReliable, f2.visibleText, f2.variant]);
+        if (comparable(now) !== comparable(before.features) || "width" in node && (node.width !== before.width || node.height !== before.height)) throw new Error("A reviewed node changed. Resolve again.");
+        const layoutNow = layoutMetadata(node);
+        if (JSON.stringify(layoutNow.absoluteBounds) !== JSON.stringify(before.layout?.absoluteBounds)) throw new Error("A reviewed node moved. Resolve again.");
+        if (!now.geometryReliable) {
+          if (!before.image) throw new Error("A non-vector asset has no review thumbnail. Narrow the scope and resolve again.");
+          const n = node;
+          const bytes = await n.exportAsync({ format: "PNG", constraint: { type: n.width >= n.height ? "WIDTH" : "HEIGHT", value: 256 } });
+          if (figma.base64Encode(bytes) !== before.image) throw new Error("A reviewed image changed. Resolve again.");
+        }
+        writes.push({ node, values: [[PD_ASSET_ID, f.assetId], [PD_ASSET_VARIANT, JSON.stringify({ version: 1, variantId: v.variantId, kind: f.kind, canonicalName: f.canonicalName, variant: v.variant, referenceNodeId: f.referenceNodeId, featureSnapshot: JSON.stringify([before.features.geometrySignature, before.features.variant, before.features.visibleText]) })], [PD_ASSET_CONFIDENCE, JSON.stringify({ score: v.identityConfidence, evidence: v.identityEvidence })], [PD_ASSET_PROJECT, project]] });
+      }
+    }
+    if (seen.size !== prepared.size) throw new Error("Review lost scanned nodes. Resolve again.");
+    const undo = [];
+    try {
+      if (writes.length && !figma.fileKey && !figma.root.getPluginData("dsf.documentId")) {
+        undo.push({ node: figma.root, key: "dsf.documentId", value: "" });
+        figma.root.setPluginData("dsf.documentId", documentId);
+      }
+      for (const w of writes) for (const [key, value] of w.values) {
+        undo.push({ node: w.node, key, value: w.node.getPluginData(key) });
+        w.node.setPluginData(key, value);
+      }
+    } catch (e) {
+      for (const u of undo.reverse()) {
+        try {
+          u.node.setPluginData(u.key, u.value);
+        } catch {
+        }
+      }
+      throw e;
+    }
+    inv.assetMap = map;
+    post({ type: "assets_applied", count: writes.length, map, project });
+  }
+
   // src/code.ts
   figma.showUI(__html__, { width: 440, height: 680, themeColors: true });
   var inventory = null;
   var busy = false;
+  async function reportSheetSelection() {
+    try {
+      post({ type: "sheet_selection", ...await inspectSheetSelection() });
+    } catch {
+      post({ type: "sheet_selection", cellId: null });
+    }
+  }
+  figma.on("selectionchange", () => {
+    if (!busy) void reportSheetSelection();
+  });
   function summarize(inv, prefix) {
     const elements = {};
     for (const e of inv.elements) {
@@ -2048,6 +2782,44 @@ module.exports = ${JSON.stringify(tw, null, 2)};
   }
   figma.ui.onmessage = async (msg) => {
     try {
+      if (msg.type === "logo_inspect" || msg.type === "logo_save") {
+        if (busy) return;
+        busy = true;
+        try {
+          post(msg.type === "logo_inspect" ? { type: "logo_inspected", data: await inspectLogo() } : { type: "logo_saved", entry: await saveLogo(msg) });
+        } catch (e) {
+          post({ type: "logo_error", msg: String(e) });
+        } finally {
+          busy = false;
+        }
+        return;
+      }
+      if (msg.type === "sheet_reference") {
+        if (busy) return;
+        busy = true;
+        try {
+          post({ type: "sheet_reference_ready", entry: await exportSheetReference(msg.cellId, msg.name, msg.assetName) });
+        } finally {
+          busy = false;
+        }
+        return;
+      }
+      if (msg.type === "sheet_inspect") {
+        await reportSheetSelection();
+        return;
+      }
+      if (msg.type === "sheet_identify") {
+        if (busy) return;
+        busy = true;
+        try {
+          const result = await identifySheetSelection(msg.cellId, msg.name, !!msg.match, msg.assetName);
+          if (inventory) await refreshIdentifications(inventory);
+          post({ type: "sheet_identified", ...result });
+        } finally {
+          busy = false;
+        }
+        return;
+      }
       if (msg.type === "cancel") {
         setCancelled(true);
         return;
@@ -2063,8 +2835,9 @@ module.exports = ${JSON.stringify(tw, null, 2)};
           return;
         }
         post({ type: "progress", pct: 2, msg: "Loading pages\u2026" });
+        invalidateAssets();
         inventory = await scan(scope, msg.baseGrid || 4);
-        post({ type: "scanned", summary: summarize(inventory, msg.prefix || "ds/") });
+        post({ type: "scanned", newScan: true, summary: summarize(inventory, msg.prefix || "ds/") });
         busy = false;
         return;
       }
@@ -2096,6 +2869,24 @@ module.exports = ${JSON.stringify(tw, null, 2)};
         busy = false;
         return;
       }
+      if (msg.type === "assets_prepare") {
+        if (busy) return;
+        if (!inventory) throw new Error("Scan first");
+        busy = true;
+        setCancelled(false);
+        await prepareAssets(inventory, msg.project || "default", msg.semantic || []);
+        busy = false;
+        return;
+      }
+      if (msg.type === "assets_apply") {
+        if (busy) return;
+        if (!inventory) throw new Error("Scan first");
+        busy = true;
+        setCancelled(false);
+        await applyAssets(inventory, msg.map, msg.project || "default");
+        busy = false;
+        return;
+      }
       if (msg.type === "ai_key_get") {
         post({ type: "ai_keys", keys: await getApiKeys() });
         return;
@@ -2121,6 +2912,7 @@ module.exports = ${JSON.stringify(tw, null, 2)};
         busy = true;
         setCancelled(false);
         const n = await applyAiNames(msg.renames || [], msg.prefix || "ds/", !!msg.usePrefix);
+        if (inventory) await refreshIdentifications(inventory);
         post({ type: "ai_applied", count: n });
         figma.notify(`Renamed ${n} layers`);
         busy = false;

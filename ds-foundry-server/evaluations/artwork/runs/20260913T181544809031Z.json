@@ -1,0 +1,334 @@
+{
+  "total": 11,
+  "identifications": {
+    "correct_identification": 6,
+    "incorrect_identification": 5
+  },
+  "accuracy": 0.5454545454545454,
+  "matches": {
+    "correct_match": 3,
+    "correct_nonmatch": 4,
+    "incorrect_match": 2
+  },
+  "match_precision": 0.6,
+  "match_recall": 1.0,
+  "groups": {
+    "ollie": {
+      "correct_identification": 3
+    },
+    "character": {
+      "correct_identification": 2
+    },
+    "fragment": {
+      "incorrect_identification": 3
+    },
+    "scene": {
+      "incorrect_identification": 2
+    },
+    "cloud": {
+      "correct_identification": 1
+    }
+  },
+  "cases": [
+    {
+      "id": "blue-running",
+      "expected": "Blue Ollie, wings extended",
+      "prediction": {
+        "key": "blue-running",
+        "name": "ollie-running",
+        "what": "blue bird mascot running happily",
+        "kind": "character",
+        "confidence": 0.9,
+        "source": "model",
+        "note": ""
+      },
+      "status": "correct_identification",
+      "reasons": [],
+      "match_status": "correct_match"
+    },
+    {
+      "id": "blue-drinking",
+      "expected": "Blue Ollie drinking from a juice box",
+      "prediction": {
+        "key": "blue-drinking",
+        "name": "ollie-drinking",
+        "what": "ollie mascot relaxing and sipping from a juice box",
+        "kind": "character",
+        "confidence": 0.95,
+        "source": "model",
+        "note": ""
+      },
+      "status": "correct_identification",
+      "reasons": [],
+      "match_status": "correct_match"
+    },
+    {
+      "id": "gray-standing",
+      "expected": "Gray owl standing",
+      "prediction": {
+        "key": "gray-standing",
+        "name": "ollie-grey",
+        "what": "grey version of ollie owl mascot standing front",
+        "kind": "character",
+        "confidence": 0.95,
+        "source": "model",
+        "note": ""
+      },
+      "status": "correct_identification",
+      "reasons": [],
+      "match_status": "not_scored"
+    },
+    {
+      "id": "gray-guitar",
+      "expected": "Gray owl playing a guitar",
+      "prediction": {
+        "key": "gray-guitar",
+        "name": "ollie-playing-guitar",
+        "what": "ollie mascot playing a guitar",
+        "kind": "character",
+        "confidence": 0.95,
+        "source": "model",
+        "note": ""
+      },
+      "status": "correct_identification",
+      "reasons": [],
+      "match_status": "not_scored"
+    },
+    {
+      "id": "beak-part",
+      "expected": "Yellow beak fragment",
+      "prediction": {
+        "key": "beak-part",
+        "name": "ollie-beak",
+        "what": "yellow beak with dark blue outline",
+        "kind": "character",
+        "confidence": 0.85,
+        "source": "model",
+        "note": ""
+      },
+      "status": "incorrect_identification",
+      "reasons": [
+        "wrong whole-artwork/part category"
+      ],
+      "match_status": "correct_nonmatch"
+    },
+    {
+      "id": "wing-part",
+      "expected": "Blue wing fragment",
+      "prediction": {
+        "key": "wing-part",
+        "name": "ollie-wing",
+        "what": "wing of ollie owl character",
+        "kind": "character",
+        "confidence": 0.95,
+        "source": "model",
+        "note": ""
+      },
+      "status": "incorrect_identification",
+      "reasons": [
+        "wrong whole-artwork/part category"
+      ],
+      "match_status": "correct_nonmatch"
+    },
+    {
+      "id": "face-mask-part",
+      "expected": "White eye mask with beak, no pupils",
+      "prediction": {
+        "key": "face-mask-part",
+        "name": "ollie-face",
+        "what": "ollie mascot eye sockets and upper beak",
+        "kind": "character",
+        "confidence": 0.95,
+        "source": "critic",
+        "note": "Proposed name is longer than 4 words or uses an incorrect structure; use a concise kebab-case name under 4 words."
+      },
+      "status": "incorrect_identification",
+      "reasons": [
+        "wrong whole-artwork/part category"
+      ],
+      "match_status": "correct_nonmatch"
+    },
+    {
+      "id": "two-owls",
+      "expected": "Pink and yellow owls with popsicle",
+      "prediction": {
+        "key": "two-owls",
+        "name": "ollie-pink-and-yellow-owls",
+        "what": "pink owl mascot holding popsicle next to yellow owl mascot",
+        "kind": "character",
+        "confidence": 0.9,
+        "source": "model",
+        "note": ""
+      },
+      "status": "incorrect_identification",
+      "reasons": [
+        "missing required subject/action terms",
+        "wrong whole-artwork/part category"
+      ],
+      "match_status": "incorrect_match"
+    },
+    {
+      "id": "three-backs",
+      "expected": "Three owl backs",
+      "prediction": {
+        "key": "three-backs",
+        "name": "ollie-trio-back",
+        "what": "three owl mascots viewed from behind in blue green and pink",
+        "kind": "character",
+        "confidence": 0.95,
+        "source": "model",
+        "note": ""
+      },
+      "status": "incorrect_identification",
+      "reasons": [
+        "wrong whole-artwork/part category"
+      ],
+      "match_status": "incorrect_match"
+    },
+    {
+      "id": "cloud-screenshot",
+      "expected": "Cloud",
+      "prediction": {
+        "key": "cloud-screenshot",
+        "name": "cloud",
+        "what": "white cloud with dark outline",
+        "kind": "illustration",
+        "confidence": 0.95,
+        "source": "model",
+        "note": ""
+      },
+      "status": "correct_identification",
+      "reasons": [],
+      "match_status": "correct_nonmatch"
+    },
+    {
+      "id": "pink-ollie-screenshot",
+      "expected": "Pink Ollie",
+      "prediction": {
+        "key": "pink-ollie-screenshot",
+        "name": "ollie-pink",
+        "what": "pink owl mascot waving",
+        "kind": "character",
+        "confidence": 0.95,
+        "source": "model",
+        "note": ""
+      },
+      "status": "correct_identification",
+      "reasons": [],
+      "match_status": "correct_match"
+    }
+  ],
+  "missing_coverage": [
+    "logos: no verified real logo export available",
+    "debris: need confirmed accidental vectors and source geometry",
+    "geometry similarity: stored thumbnails have no source vector networks"
+  ],
+  "config": {
+    "mode": "replay"
+  },
+  "predictions": [
+    {
+      "key": "blue-running",
+      "name": "ollie-running",
+      "what": "blue bird mascot running happily",
+      "kind": "character",
+      "confidence": 0.9,
+      "source": "model",
+      "note": ""
+    },
+    {
+      "key": "blue-drinking",
+      "name": "ollie-drinking",
+      "what": "ollie mascot relaxing and sipping from a juice box",
+      "kind": "character",
+      "confidence": 0.95,
+      "source": "model",
+      "note": ""
+    },
+    {
+      "key": "gray-standing",
+      "name": "ollie-grey",
+      "what": "grey version of ollie owl mascot standing front",
+      "kind": "character",
+      "confidence": 0.95,
+      "source": "model",
+      "note": ""
+    },
+    {
+      "key": "gray-guitar",
+      "name": "ollie-playing-guitar",
+      "what": "ollie mascot playing a guitar",
+      "kind": "character",
+      "confidence": 0.95,
+      "source": "model",
+      "note": ""
+    },
+    {
+      "key": "beak-part",
+      "name": "ollie-beak",
+      "what": "yellow beak with dark blue outline",
+      "kind": "character",
+      "confidence": 0.85,
+      "source": "model",
+      "note": ""
+    },
+    {
+      "key": "wing-part",
+      "name": "ollie-wing",
+      "what": "wing of ollie owl character",
+      "kind": "character",
+      "confidence": 0.95,
+      "source": "model",
+      "note": ""
+    },
+    {
+      "key": "face-mask-part",
+      "name": "ollie-face",
+      "what": "ollie mascot eye sockets and upper beak",
+      "kind": "character",
+      "confidence": 0.95,
+      "source": "critic",
+      "note": "Proposed name is longer than 4 words or uses an incorrect structure; use a concise kebab-case name under 4 words."
+    },
+    {
+      "key": "two-owls",
+      "name": "ollie-pink-and-yellow-owls",
+      "what": "pink owl mascot holding popsicle next to yellow owl mascot",
+      "kind": "character",
+      "confidence": 0.9,
+      "source": "model",
+      "note": ""
+    },
+    {
+      "key": "three-backs",
+      "name": "ollie-trio-back",
+      "what": "three owl mascots viewed from behind in blue green and pink",
+      "kind": "character",
+      "confidence": 0.95,
+      "source": "model",
+      "note": ""
+    },
+    {
+      "key": "cloud-screenshot",
+      "name": "cloud",
+      "what": "white cloud with dark outline",
+      "kind": "illustration",
+      "confidence": 0.95,
+      "source": "model",
+      "note": ""
+    },
+    {
+      "key": "pink-ollie-screenshot",
+      "name": "ollie-pink",
+      "what": "pink owl mascot waving",
+      "kind": "character",
+      "confidence": 0.95,
+      "source": "model",
+      "note": ""
+    }
+  ],
+  "timestamp": "2026-09-13T18:15:44.808574+00:00",
+  "dataset_sha256": "9073825c41cfe1e5f11b49e8b32e41e755cbe16173b1b65e13cfae66e9274d64",
+  "code_sha256": "e91dc253f7b5e42d4b250f54e0d78c9f144d16959300f9fd8ebd0616e59a188a",
+  "regressions": []
+}
