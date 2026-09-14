@@ -1,4 +1,4 @@
-# DS Foundry 1.5.0
+# DS Foundry 1.6.9
 
 A Figma plugin that reads any file (or app, or selection), labels and tags its layers, and builds a design system from what it finds: colour, text and effect styles; a variables collection; component sets sampled from real buttons, inputs, cards and nav bars; an icon library; documented foundation pages; and token files ready for code.
 
@@ -13,25 +13,50 @@ Scanning and canonical resolution are read-only. Build, Apply names and Apply ap
 
 ## Use
 
-1. Choose a scope — **Selection**, **Page** or **Document** — and press **Scan**.
-   The inventory shows everything found: colours (with proposed names), text styles, spacing scale, radii, effects, recognised elements, icons, and components already in use.
-2. Set the **prefix** (default `ds/`) and the **grid** spacing snaps to (4 or 8).
-3. Tick what to build and press **Build design system**.
-4. Download the token files: `tokens.json` (W3C DTCG), `tokens.css`, `tailwind.tokens.cjs`, `DESIGN_SYSTEM.md`, `inventory.json`, or all of them as one zip.
+The plugin numbers each tool separately and shows one step at a time. Use the numbered navigator or Continue/Back buttons without losing inputs or name-review choices. Steps 1–3 are optional; a new file can go straight to Step 4. For automatic character/image recognition, **Recognize artwork automatically** in Step 1 scans the document and starts Step 5 directly. It uses the selected provider and pauses for name review before any renaming or building.
+
+1. **Identify a contact-sheet item.** Select a linked preview or caption in Figma, enter its name, and update the original plus linked sheets. This needs no scan or API key.
+2. **Logo composition inspector.** Inspect the original logo. Assign every region as Symbol / logotype, Text / signature, or Ignore. Save becomes available when the roles and name are valid. The checklist separately tracks source approval and the library reference.
+3. **Saved reference library.** Load project references, or save selected items from the Step 5 review for future files.
+4. **Scan your source artwork.** Set scope, naming prefix and spacing grid, then scan. Changing the grid requires a fresh scan. Quick rebuild shortcuts also live here.
+5. **Identify and review artwork.** Automatically load established artwork and saved project references, suggest names and review them. The reference summary shows what was loaded. Multiple saved poses with the same name remain available in both comparison passes. Apply selected names, or explicitly continue using saved names.
+6. **Compare asset families.** Optional advanced matching: resolve, review and apply approved families, or continue without changes.
+7. **Build your design system.** Choose Foundations, Components, Icons, Assets, styles and variables. Build starts only when you press **Build design system**.
+8. **Inspect and export.** Check generated pages, UTC date/version stamps and exports. Return to Step 1 to correct a sheet item.
+
+The persistent activity panel distinguishes **Waiting for selection**, **Processing**, **Needs your review**, **Saved**, **Complete**, **Partly saved**, **Failed**, and **Stopped**. Processing shows elapsed time and the latest actual progress message. Percentages appear only when reported by the plugin. After 30 seconds without an update, it says that it is waiting for a response; elapsed time is not a completion estimate. Library requests time out after 15 seconds and individual model requests after 90 seconds. Stop is shown for supported scan/build and canonical-resolution operations.
+
+Request failures show the HTTP status and the actual provider/server message. With naming server **0.3.1**, errors also identify the provider, model and naming/critic phase. Step 5 keeps a **Request errors & retries** panel after the run, including when some items succeeded; credentials are redacted. Failed requests are not treated as uncertain artwork or sent through the second visual comparison pass.
+
+The plugin retries an eligible transient naming request at most once, honoring Retry-After (or a short backoff with jitter). If the requested wait exceeds 60 seconds, it displays the delay and leaves retrying to you. Invalid requests, missing models, authentication/permission errors, unknown local faults and server-reported partially completed pipelines do not get an automatic replay. A network timeout reports that completion is unknown. These are plugin-level retries; a provider SDK may also have its own retry policy.
+
+A failed library save after a successful source approval is explicitly **Partly saved**, with a retry action. The plugin does not advance automatically past logo review or claim the sheet has updated before building it.
 
 Re-running Build replaces the pages it generated and updates styles and variables in place, so you can scan → tweak → rebuild without duplicates. **Revert labels** restores every original layer name.
+
+## Whole characters inside artwork (1.6.9)
+
+Use **Find whole characters in artwork** in Step 1 (also available in Step 5). It searches original artwork across the document, including nested vector groups inside scenes. To restrict it, select an original scene in Figma and choose **Selection** in Step 4 before starting the search. Up to 120 groups are reviewed per run, with deferred groups and export failures reported.
+
+The search also checks named illustrations such as Ollie so they can move to Characters while keeping their established names and structured identities. Whole figures with confidence at least 0.80 are shown for review. Multi-character scenes, detached body/wing/face parts, uncertain groups and redundant nested copies are excluded from these results. The confidence value comes from the model or reference matcher; it is not a calibrated accuracy guarantee. Gemini remains the default; this search uses the selected provider and may incur API charges.
+
+Review the results, **Apply names**, then build **Assets** in Step 7. Approved whole groups become separate editable copies in Characters; source scenes stay intact. Named fragments go to Artwork parts. Foundations, Components, Icons and the other Assets sections remain available. Rebuilding by itself does not perform this focused character search.
+
+The copy fitter preserves inherited rotation/reflection and measures unclipped artwork. Tile resizing ignores child constraints so small eye groups do not move or stretch. Existing unrotated artwork retains its transform.
+
+This is extraction from existing vector groups, not segmentation of flattened images or automatic assembly of scattered ungrouped parts. A complete back view can be a character; a single detached body shape is not sufficient evidence. Tested with live pink, yellow, grey-with-guitar and green groups from the Owting file, plus a saved hierarchy fixture including named Ollie. Live copy previews retained all four figures and their eye geometry; temporary test copies were removed. Classification tests use simulated responses and manual labels, without paid Gemini calls. Companion server 0.3.2 includes matching whole-character/fragment guidance and filters legacy fragment references.
 
 ## AI naming (optional)
 
 Heuristic labels tell you *what kind* of thing a layer is. AI naming tells you *what it shows*: `ds/icon/arrow-left` instead of `ds/icon/vector-14`, `ds/screen/checkout-summary` instead of `ds/screen/frame-3`, `ds/image/mountain-lake-hero`, `ds/card/pricing-plan-pro`, `ds/primary-button` for a component.
 
-1. Scan, then pick a provider in the **AI naming** section — **Claude** (Anthropic API key) or **Gemini** (Google AI Studio key) — and paste the key. Keys are saved in Figma's client storage on this machine only and sent straight to that provider — nothing goes anywhere else.
+1. Scan, then open **Step 5: Identify and review artwork**. The default is **Local server (.env keys) → Gemini · server default**, using the server's Gemini key and configured model. No key needs to be pasted into the plugin. You can explicitly choose direct Gemini or Claude and enter that provider's key; direct-mode keys are saved in Figma's client storage on this machine and sent to the selected provider.
 2. Pick a model and tick what to name: icons, images and avatars, screens/sections/nav, cards and list items, local components, plain shapes.
    - Claude: Sonnet 5 (default), Haiku 4.5 (cheapest), Opus 5.
    - Gemini: 3.7 Flash (default), 3.8 Flash, 3.5 Flash-Lite (cheapest), 3.1 Pro preview.
    - **Custom model ID…** lets you type any model ID either provider offers, so new releases work without a plugin update.
    - **Proxy (LangGraph server)** sends batches to the companion `ds-foundry-server` on `http://localhost:8000` instead. That adds a critic pass, a per-project glossary that keeps names consistent across files, and a cache, and lets you route to Claude, Gemini or a local Ollama model from one place. Each review row then shows its source (`model`, `critic`, `glossary`, `cache`) and confidence. Localhost access is allowed via `devAllowedDomains` in the manifest, which Figma honours for development plugins. Keep the server on `localhost` (not `127.0.0.1`) — Figma's manifest validator only accepts domain and localhost patterns.
-3. **Suggest names** exports a small thumbnail of each distinct item (identical layers are grouped by fingerprint and named once), composites it on white, and sends batches of 10 images per request, three requests at a time. Each item comes back with a name and a five-word description.
+3. **Identify & suggest names** exports a small thumbnail of each distinct item (identical layers are grouped by fingerprint and named once), composites it on white, and sends batches of 10 images per request, three requests at a time. Each item comes back with a name and a five-word description.
 4. Review the list — edit any name inline, untick anything you don't want — then **Apply names**. Original names are stored, so **Revert labels** undoes this too.
 
 Variants inside a component set are never renamed (that would rewrite their properties); the set itself is. With **Add prefix and category path** on, names become `ds/<category>/<name>`; off, the bare name is used.
@@ -120,7 +145,7 @@ Canonical families now separate identity from color, orientation, treatment and 
 See [workflow, API, architecture, limits and tests](../CANONICAL_ASSETS.md). Existing naming and build behavior remains available.
 
 ### Named contact sheets
-Scan the original artwork, choose **Identify & suggest names**, review the names and corrected classes, then click **Apply names & build sheets**. This uses the configured vision provider and builds Components, Icons, and Assets sheets after the names have been applied successfully. The Assets sheet includes logos, icons, symbols, component artwork, and visual previews of possible vector debris. Unrecognized artwork is marked **Needs identification** rather than given an invented identity. Debris remains in the source file for inspection.
+Scan the original artwork, choose **Identify & suggest names**, review the names and corrected classes, then click **Apply names & continue**. This uses the configured vision provider, saves the selected names, and opens optional family comparison in Step 6. Continue to Step 7, choose the output and press **Build design system** to create the pages. The Assets sheet includes logos, icons, symbols, component artwork, and visual previews of possible vector debris. Unrecognized artwork is marked **Needs identification** rather than given an invented identity. Debris remains in the source file for inspection.
 
 The ordinary Build design system action also uses already-applied semantic names and approved canonical names. Generated sheet contents are excluded from subsequent scans. Use Document scope or return to your original artwork page before scanning again.
 
@@ -129,7 +154,7 @@ The naming pass now uses existing descriptive character/art/logo names as refere
 
 Matching complete vector geometry produces a reviewable inherited name, with measured suffixes such as `recolored`, `thick-outline`, `thin-outline`, or size. For changed poses, shared normalized vector parts, palette overlap, and relative stroke thickness rank reference candidates for the vision provider. Pose and crop suffixes require visual interpretation. Palette or stroke alone never triggers a mathematical match; incomplete geometry is not treated as exact. Reference images are provided from the first naming batch, and established reference names are preserved and unchecked in the review. Reference-guided proxy requests bypass old naming cache entries so previous generic answers do not suppress the comparison.
 
-Reopen the plugin after rebuilding, and restart the naming server to load its updated reference instructions. Review proposed names before Apply names & build sheets. Matching thresholds are conservative heuristics; live Ollie recognition still needs evaluation against the actual artwork.
+Reopen the plugin after rebuilding, and restart the naming server to load its updated reference instructions. Review proposed names before Apply names & continue. Matching thresholds are conservative heuristics; live Ollie recognition still needs evaluation against the actual artwork.
 
 Build now starts artwork identification and name review by default before creating sheets. The checkbox “Identify artwork and review names before building” can be turned off to build from existing names only. Small artwork classified as icons can supply reference names and participate in the second visual comparison pass, so small mascot variants are not excluded by their size classification. The selected AI provider must be configured; model failures appear in the naming review.
 
@@ -163,7 +188,7 @@ Detached artwork remains identifiable. Set **Identity** to `ollie` and **crop** 
 ### Why a match was suggested
 Expand **Why this match?** in the identification review. Up to three references appear beside the candidate, with available evidence: complete normalized geometry, shared vector-part count and overlap, exact palette overlap, and relative stroke-thickness similarity. References merely supplied to visual naming are labeled as such. Measurements are supporting evidence, not confidence probabilities; vector parts are not anatomically identified as eyes or wings.
 
-Choose **Same asset** to adopt the reference identity and appearance, **Variation** to keep its identity and specify a property/value (for example color = pink), or **Different asset** to remove that pair from the current review and unselect its suggestion. Add further variation properties under Identity & appearance. Decisions update the review only; Apply names or Apply names & build sheets writes the changes to Figma. Rejected pairs are now saved per project and loaded across scans and plugin restarts; see Remember rejected matches below.
+Choose **Same asset** to adopt the reference identity and appearance, **Variation** to keep its identity and specify a property/value (for example color = pink), or **Different asset** to remove that pair from the current review and unselect its suggestion. Add further variation properties under Identity & appearance. Decisions update the review only; Apply names or Apply names & continue writes the changes to Figma. Rejected pairs are now saved per project and loaded across scans and plugin restarts; see Remember rejected matches below.
 
 ### Remember rejected matches
 **Different asset** saves an undirected exclusion pair in the current project on the local server. Identification loads these decisions before proposing matches, excludes blocked references, bypasses relevant naming cache results, and flags returned names that conflict with excluded identities. If decisions cannot load, naming stops with an error rather than silently ignoring them. This applies to the identification review; canonical-family merge review remains a separate workflow.
@@ -178,8 +203,24 @@ Status bars, pagination, and compact sign-in/continue controls are classified as
 Reopen the rebuilt plugin, restart the companion server, rescan the original artwork, and rebuild the Assets sheet. Old generated pages do not update automatically. Set the Owting mark-plus-wordmark group to logo through the naming review and save the approved reference in your project.
 
 ### Logo composition inspector
-Reopen the plugin and restart the updated companion server. Select one original logo group (or a linked contact-sheet item), then choose **Inspect selected logo**. The original thumbnail receives numbered region outlines: signature/text regions in purple, symbol/logotype regions in blue, and unresolved/ignored regions in gray. Choose a role for every region, transcribe outlined lettering when necessary, and enter an approved logo name. **Save composition & approved logo reference** writes reviewed composition metadata to the source and saves a logo reference in the selected library project. It does not rename source layers or change their category. Library failures leave source metadata intact and provide a retry message.
+Reopen the plugin and restart the updated companion server. Select one original logo group (or a linked contact-sheet item), then choose **Inspect selected logo**. The original thumbnail receives numbered region outlines: signature/text regions in purple, symbol/logotype regions in blue, and unresolved/ignored regions in gray. Choose a role for every region, transcribe outlined lettering when necessary, and enter an approved logo name. **Save composition & approved logo reference** writes reviewed composition metadata to the source and saves a logo reference in the selected library project. It does not rename source layers; it now approves the source category as logo. Library failures leave source metadata intact and provide a retry message.
 
 The inspector reads existing grouping and native text, not OCR. Mixed text containers are traversed up to four levels; vector-only subgroups stay together. There is a limit of 48 regions. It cannot split a flattened vector/image into semantic regions or draw custom boxes; restructure a copy into meaningful groups first if necessary. Boxes use axis-aligned visible bounds, so rotated/curved arrangements are approximate. Available arrangement labels are horizontal, stacked, overlapping, symbol-only, and signature-only. Backgrounds can be ignored. This is user-reviewed logo evidence, not automatic brand certification.
 
 References store normalized bounds, text, assigned roles, arrangement, and available region geometry features. Reloaded references supply the reviewed arrangement and lettering/bounds as context for visual naming alongside the full thumbnail. Existing whole-asset geometry matching still operates; independent region-level retrieval and automatic OCR are not implemented. Source selection/image/geometry/text changes invalidate stale save requests. Editing roles requires reinspecting the source; library Rename preserves composition metadata.
+
+### Approved-only Logos (1.6.1)
+The Logos section now requires explicit, current source approval from the composition inspector. A saved category, model suggestion, or logo-like name alone is insufficient. Saving composition approves the original selected group and its semantic name; the library copy remains a separate persistence step. Known UI exclusions still take precedence. Unapproved logo guesses move to Symbols & ornaments; status controls and utility icons go to their appropriate sections. No source artwork is deleted.
+
+After upgrading, inspect and save previously reviewed logos once more, then rescan the original source page/document and rebuild Assets. Older generated sheets and old reference-only approvals are not automatically migrated. If Owting is the only approved source logo in that scope, it is the only source represented in Logos. Approval fingerprints include geometry, native text, paints, and transforms; source edits invalidate approval until reviewed again. The current build is marked approved-logos-4.
+
+### Direct Assets rebuild (1.6.3)
+Use **Update the Assets sheet → Rebuild Assets now (no AI)** to scan original artwork across the document and rebuild generated Assets sections using saved names/current logo approvals. No prior scan or naming review is required. This does not rename source layers, run AI identification, or rebuild foundations/styles/components. A fresh timestamp and version identify the resulting sections. The existing Build design system flow still pauses for AI name review when its identification checkbox is selected.
+
+
+### Full rebuild with preserved names (1.6.4)
+Use **Identify unnamed artwork & rebuild all pages** to rescan the original artwork across the document, even when viewing an old generated page. The naming review preserves explicit identifications, structured identity/appearance names, meaningful source-layer names, and meaningful saved original names. Generated geometry labels are not treated as identifications. Up to 32 named artwork references are exported separately from the unnamed-item limit; unknown illustrations are processed before icons.
+
+Review the proposed names and click **Apply names & continue**. Continue through optional family comparison in Step 6 to Step 7 with Foundations, Components, Icons and the sectioned Assets sheet selected. Press **Build design system** to generate those pages, retaining the current logo approval gate. If there are no new names to apply, use **Continue with saved names** to reach Step 6, then continue to Step 7. The coverage line reports items beyond the naming limit and failed thumbnail exports; those items can remain unidentified. Increase the limit or repeat identification after applying the first batch.
+
+**Refresh Assets with saved names (no AI)** remains an Assets-only shortcut. It recovers names still stored on source layers but cannot recreate identifications that were never saved there. It leaves truly unnamed artwork marked for identification. Generated sheets and screenshots are not used to guess source identities.

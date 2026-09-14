@@ -1,4 +1,5 @@
 import {artworkBoundary,artworkRole} from './artwork';
+import {characterGroupCandidate,sourceAncestors} from './character-discovery';
 import {readAssetName} from './asset-names';
 import { Scope, Inventory, ColorToken, TypeToken, SpaceToken, RadiusToken, EffectToken, ElementRec, ComponentRef } from './types';
 import { classify, ClassifyCtx, logoUiCategory } from './classify';
@@ -9,7 +10,7 @@ import { hasGeneratedAncestor, resolvedCategory } from './contact-sheet';
 import { extractIdentity } from './identity';
 import { layoutMetadata } from './layout-meta';
 
-interface WalkItem { node: SceneNode; ctx: ClassifyCtx; inInstance: boolean; page: string; artworkOwner?:string; }
+interface WalkItem { node: SceneNode; ctx: ClassifyCtx; inInstance: boolean; page: string; artworkOwner?:string; artworkCategory?:string; }
 
 const SKIP_TYPES = new Set(['SLICE', 'STICKY', 'CONNECTOR', 'SHAPE_WITH_TEXT', 'CODE_BLOCK', 'WIDGET', 'EMBED', 'LINK_UNFURL', 'MEDIA', 'TABLE']);
 
@@ -20,6 +21,8 @@ export async function scan(scope: Scope, baseGrid: number): Promise<Inventory> {
   const radii = new Map<number, RadiusToken>();
   const effects = new Map<string, EffectToken>();
   const artworkParts:NonNullable<Inventory['artworkParts']>=[];
+  const characterCandidates:ElementRec[]=[];
+  let characterCandidatesDeferred=0;
   const elements: ElementRec[] = [];
   const icons: ElementRec[] = [];
   const shapes: ElementRec[] = [];
@@ -199,7 +202,10 @@ export async function scan(scope: Scope, baseGrid: number): Promise<Inventory> {
     let textRole = '';
     if (node.type === 'TEXT') textRole = textRoleOf(node as TextNode);
 
-    const cls = item.artworkOwner ? {category:'other' as const,text:'',fillHex:null,strokeHex:null,fingerprint:'',desc:''} : classify(node, item.ctx);
+    const nestedCandidate=!!item.artworkOwner&&!['character','logo'].includes(item.artworkCategory||'')&&characterGroupCandidate(node)&&artworkRole(node).artworkRole!=='part';
+    const keepCandidate=nestedCandidate&&characterCandidates.length<500;
+    if(nestedCandidate&&!keepCandidate)characterCandidatesDeferred++;
+    const cls = item.artworkOwner ? {category:'illustration' as const,text:'',fillHex:null,strokeHex:null,fingerprint:'',desc:'Nested vector group; review whether this is one whole character, a scene or a fragment.'} : classify(node, item.ctx);
     const savedCategory = node.getPluginData('dsf.category');
     if (!item.artworkOwner && (savedCategory !== 'debris' || node.getPluginData('dsf.semanticName'))) cls.category = resolvedCategory(savedCategory, cls.category);
     if (!item.artworkOwner && cls.category === 'logo') cls.category = logoUiCategory(node) || cls.category;
@@ -207,14 +213,16 @@ export async function scan(scope: Scope, baseGrid: number): Promise<Inventory> {
     const boundary=!item.artworkOwner&&artworkBoundary(node,cls.category);
     const artContainer='children' in node&&['icon','logo','character','illustration','symbol'].includes(cls.category);
     if(item.artworkOwner)artworkParts.push({nodeId:node.id,ownerId:item.artworkOwner,name:node.name,nodeType:node.type,layout:layoutMetadata(node)});
-    if (!item.artworkOwner && (!artContainer || boundary) && (cls.category !== 'other' || node.type === 'COMPONENT' || node.type === 'INSTANCE' || node.type === 'COMPONENT_SET')) {
+    if (keepCandidate || !item.artworkOwner && (!artContainer || boundary) && (cls.category !== 'other' || node.type === 'COMPONENT' || node.type === 'INSTANCE' || node.type === 'COMPONENT_SET')) {
       const rec: ElementRec = {
         id: node.id,
         nodeType: node.type,
+        characterAncestorIds:sourceAncestors(node),
         ...(['icon','logo','character','illustration','symbol'].includes(cls.category)?artworkRole(node):{}),
         assetName:readAssetName(node),
         category: cls.category,
         name: node.name,
+        originalName: node.getPluginData('dsf.originalName') || undefined,
         semanticName: node.getPluginData('dsf.semanticName') || undefined,
         text: cls.text.slice(0, 80),
         w: node.width,
@@ -229,7 +237,8 @@ export async function scan(scope: Scope, baseGrid: number): Promise<Inventory> {
         identity: extractIdentity(node),
         layout: layoutMetadata(node),
       };
-      if (cls.category === 'icon') icons.push(rec);
+      if(keepCandidate)characterCandidates.push(rec);
+      else if (cls.category === 'icon') icons.push(rec);
       else if (cls.category === 'shape') { if (shapes.length < 4000) shapes.push(rec); }
       else elements.push(rec);
     }
@@ -238,7 +247,8 @@ export async function scan(scope: Scope, baseGrid: number): Promise<Inventory> {
     if ('children' in node) {
       for (let i=node.children.length-1;i>=0;i--) {
         const k=node.children[i];
-        stack.push({node:k,ctx:{parentW:node.width,parentH:node.height,yInParent:k.y,topLevel:false},inInstance:inInstance||node.type==='INSTANCE',page:item.page,artworkOwner:item.artworkOwner||(boundary?node.id:undefined)});
+        const reviewedCharacter=keepCandidate&&node.getPluginData('dsf.category')==='character'&&artworkRole(node).artworkRole!=='part';
+        stack.push({node:k,ctx:{parentW:node.width,parentH:node.height,yInParent:k.y,topLevel:false},inInstance:inInstance||node.type==='INSTANCE',page:item.page,artworkOwner:item.artworkOwner||(boundary?node.id:undefined),artworkCategory:reviewedCharacter?'character':item.artworkCategory||(boundary?cls.category:undefined)});
       }
     }
   }
@@ -262,6 +272,7 @@ export async function scan(scope: Scope, baseGrid: number): Promise<Inventory> {
 
   const inv: Inventory = {
     artworkParts,
+    characterCandidates,characterCandidatesDeferred,
     scope,
     pages,
     pageIds,

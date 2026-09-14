@@ -1,0 +1,1061 @@
+{
+  "sourceFile": "C8ymMcdYB2rgQsjE96T3kZ",
+  "inspectedAt": "2026-09-14",
+  "description": "Live Figma structure. Labels visually checked against MCP previews; no model inference. Tuple: id, type, name, width, height, visible, children.",
+  "labels": {
+    "1:516": "pink-owl",
+    "1:537": "yellow-owl",
+    "1:363": "grey-owl-playing-guitar",
+    "1:389": "green-owl",
+    "1:635": "Ollie"
+  },
+  "trees": [
+    [
+      "1:516",
+      "GROUP",
+      "Group 1000001050",
+      58,
+      56.73,
+      true,
+      [
+        [
+          "1:517",
+          "VECTOR",
+          "Vector 171",
+          2.91,
+          9.41,
+          true,
+          null
+        ],
+        [
+          "1:518",
+          "VECTOR",
+          "Vector 172",
+          2.43,
+          8.53,
+          true,
+          null
+        ],
+        [
+          "1:519",
+          "VECTOR",
+          "Vector 352",
+          16.05,
+          28.37,
+          true,
+          null
+        ],
+        [
+          "1:520",
+          "VECTOR",
+          "Vector 490",
+          24.53,
+          17.75,
+          true,
+          null
+        ],
+        [
+          "1:521",
+          "VECTOR",
+          "Ellipse 568",
+          36.16,
+          51.69,
+          true,
+          null
+        ],
+        [
+          "1:522",
+          "VECTOR",
+          "Ellipse 603",
+          14.52,
+          11.93,
+          true,
+          null
+        ],
+        [
+          "1:523",
+          "GROUP",
+          "Group 1000000836",
+          30.04,
+          17.84,
+          true,
+          [
+            [
+              "1:524",
+              "BOOLEAN_OPERATION",
+              "Union",
+              30.04,
+              15.06,
+              true,
+              [
+                [
+                  "1:525",
+                  "VECTOR",
+                  "Ellipse 559",
+                  16.97,
+                  15.06,
+                  true,
+                  null
+                ],
+                [
+                  "1:526",
+                  "VECTOR",
+                  "Ellipse 560",
+                  16.97,
+                  15.06,
+                  true,
+                  null
+                ]
+              ]
+            ],
+            [
+              "1:527",
+              "GROUP",
+              "eye 1",
+              6.83,
+              6.82,
+              true,
+              [
+                [
+                  "1:528",
+                  "ELLIPSE",
+                  "Ellipse 565",
+                  6.83,
+                  6.82,
+                  true,
+                  null
+                ],
+                [
+                  "1:529",
+                  "VECTOR",
+                  "Vector 157 (Stroke)",
+                  1.58,
+                  1.36,
+                  true,
+                  null
+                ]
+              ]
+            ],
+            [
+              "1:530",
+              "GROUP",
+              "eye 2",
+              6.83,
+              6.82,
+              true,
+              [
+                [
+                  "1:531",
+                  "ELLIPSE",
+                  "Ellipse 565",
+                  6.83,
+                  6.82,
+                  true,
+                  null
+                ],
+                [
+                  "1:532",
+                  "VECTOR",
+                  "Vector 157 (Stroke)",
+                  1.58,
+                  1.36,
+                  true,
+                  null
+                ]
+              ]
+            ],
+            [
+              "1:533",
+              "VECTOR",
+              "Ellipse 566",
+              4.37,
+              5.46,
+              true,
+              null
+            ]
+          ]
+        ]
+      ]
+    ],
+    [
+      "1:537",
+      "GROUP",
+      "Group 1000001043",
+      37.13,
+      56.73,
+      true,
+      [
+        [
+          "1:538",
+          "VECTOR",
+          "Vector 169",
+          2.91,
+          9.41,
+          true,
+          null
+        ],
+        [
+          "1:539",
+          "VECTOR",
+          "Vector 170",
+          2.43,
+          8.53,
+          true,
+          null
+        ],
+        [
+          "1:540",
+          "VECTOR",
+          "Ellipse 567",
+          36.16,
+          51.69,
+          true,
+          null
+        ],
+        [
+          "1:541",
+          "VECTOR",
+          "Ellipse 602",
+          14.52,
+          11.93,
+          true,
+          null
+        ],
+        [
+          "1:542",
+          "VECTOR",
+          "Vector 491",
+          19.53,
+          14.35,
+          true,
+          null
+        ],
+        [
+          "1:543",
+          "VECTOR",
+          "Vector 492",
+          19.53,
+          14.35,
+          true,
+          null
+        ],
+        [
+          "1:544",
+          "GROUP",
+          "Group 1000000835",
+          30.04,
+          17.58,
+          true,
+          [
+            [
+              "1:545",
+              "BOOLEAN_OPERATION",
+              "Union",
+              30.04,
+              14.8,
+              true,
+              [
+                [
+                  "1:546",
+                  "VECTOR",
+                  "Ellipse 559",
+                  16.97,
+                  14.68,
+                  true,
+                  null
+                ],
+                [
+                  "1:547",
+                  "VECTOR",
+                  "Ellipse 560",
+                  16.97,
+                  14.8,
+                  true,
+                  null
+                ]
+              ]
+            ],
+            [
+              "1:548",
+              "ELLIPSE",
+              "Ellipse 564",
+              6.83,
+              6.83,
+              true,
+              null
+            ],
+            [
+              "1:549",
+              "GROUP",
+              "eye 1",
+              6.83,
+              6.82,
+              true,
+              [
+                [
+                  "1:550",
+                  "ELLIPSE",
+                  "Ellipse 565",
+                  6.83,
+                  6.82,
+                  true,
+                  null
+                ],
+                [
+                  "1:551",
+                  "VECTOR",
+                  "Vector 157 (Stroke)",
+                  1.58,
+                  1.36,
+                  true,
+                  null
+                ]
+              ]
+            ],
+            [
+              "1:552",
+              "GROUP",
+              "eye 2",
+              6.83,
+              6.82,
+              true,
+              [
+                [
+                  "1:553",
+                  "ELLIPSE",
+                  "Ellipse 565",
+                  6.83,
+                  6.82,
+                  true,
+                  null
+                ],
+                [
+                  "1:554",
+                  "VECTOR",
+                  "Vector 157 (Stroke)",
+                  1.58,
+                  1.36,
+                  true,
+                  null
+                ]
+              ]
+            ],
+            [
+              "1:555",
+              "VECTOR",
+              "Ellipse 566",
+              4.37,
+              5.46,
+              true,
+              null
+            ]
+          ]
+        ]
+      ]
+    ],
+    [
+      "1:363",
+      "GROUP",
+      "Group 1000001288",
+      118.21,
+      113.54,
+      true,
+      [
+        [
+          "1:364",
+          "GROUP",
+          "Group 1000000978",
+          72.36,
+          113.54,
+          true,
+          [
+            [
+              "1:365",
+              "VECTOR",
+              "Vector 319",
+              5.83,
+              18.83,
+              true,
+              null
+            ],
+            [
+              "1:366",
+              "VECTOR",
+              "Vector 320",
+              4.86,
+              17.08,
+              true,
+              null
+            ],
+            [
+              "1:367",
+              "VECTOR",
+              "Ellipse 739",
+              72.36,
+              103.45,
+              true,
+              null
+            ],
+            [
+              "1:368",
+              "VECTOR",
+              "Ellipse 740",
+              29.06,
+              23.87,
+              true,
+              null
+            ],
+            [
+              "1:369",
+              "GROUP",
+              "Group 1000000977",
+              60.11,
+              39.69,
+              true,
+              [
+                [
+                  "1:370",
+                  "BOOLEAN_OPERATION",
+                  "Union",
+                  60.11,
+                  30.14,
+                  true,
+                  [
+                    [
+                      "1:371",
+                      "VECTOR",
+                      "Ellipse 559",
+                      33.96,
+                      30.14,
+                      true,
+                      null
+                    ],
+                    [
+                      "1:372",
+                      "VECTOR",
+                      "Ellipse 560",
+                      33.96,
+                      30.14,
+                      true,
+                      null
+                    ]
+                  ]
+                ],
+                [
+                  "1:373",
+                  "ELLIPSE",
+                  "Ellipse 564",
+                  13.66,
+                  13.66,
+                  true,
+                  null
+                ],
+                [
+                  "1:374",
+                  "ELLIPSE",
+                  "Ellipse 565",
+                  13.66,
+                  13.66,
+                  true,
+                  null
+                ],
+                [
+                  "1:375",
+                  "VECTOR",
+                  "Ellipse 566",
+                  8.23,
+                  13.94,
+                  true,
+                  null
+                ],
+                [
+                  "1:376",
+                  "VECTOR",
+                  "Ellipse 567",
+                  8.74,
+                  10.93,
+                  true,
+                  null
+                ],
+                [
+                  "1:377",
+                  "BOOLEAN_OPERATION",
+                  "Subtract",
+                  0,
+                  0,
+                  true,
+                  []
+                ]
+              ]
+            ],
+            [
+              "1:378",
+              "VECTOR",
+              "Vector 321",
+              1.22,
+              1.01,
+              true,
+              null
+            ],
+            [
+              "1:379",
+              "VECTOR",
+              "Vector 322",
+              1.23,
+              0.91,
+              true,
+              null
+            ]
+          ]
+        ],
+        [
+          "1:380",
+          "GROUP",
+          "guitar",
+          45.74,
+          106.41,
+          true,
+          [
+            [
+              "1:381",
+              "RECTANGLE",
+              "Rectangle 5989",
+              10.72,
+              36.57,
+              true,
+              null
+            ],
+            [
+              "1:382",
+              "BOOLEAN_OPERATION",
+              "Union",
+              45.74,
+              59.74,
+              true,
+              [
+                [
+                  "1:383",
+                  "ELLIPSE",
+                  "Ellipse 752",
+                  36.41,
+                  36.41,
+                  true,
+                  null
+                ],
+                [
+                  "1:384",
+                  "ELLIPSE",
+                  "Ellipse 753",
+                  45.74,
+                  45.74,
+                  true,
+                  null
+                ]
+              ]
+            ],
+            [
+              "1:385",
+              "ELLIPSE",
+              "Ellipse 754",
+              21.18,
+              21.18,
+              true,
+              null
+            ],
+            [
+              "1:386",
+              "VECTOR",
+              "Rectangle 6000",
+              18.63,
+              18.22,
+              true,
+              null
+            ]
+          ]
+        ],
+        [
+          "1:387",
+          "VECTOR",
+          "Vector 329",
+          95.15,
+          37.59,
+          true,
+          null
+        ]
+      ]
+    ],
+    [
+      "1:389",
+      "GROUP",
+      "Group 1000000883",
+      124.98,
+      120.36,
+      true,
+      [
+        [
+          "1:390",
+          "VECTOR",
+          "Vector 168",
+          4.95,
+          17.4,
+          true,
+          null
+        ],
+        [
+          "1:391",
+          "VECTOR",
+          "Vector 345",
+          43.69,
+          44.9,
+          true,
+          null
+        ],
+        [
+          "1:392",
+          "VECTOR",
+          "Ellipse 566",
+          73.72,
+          105.38,
+          true,
+          null
+        ],
+        [
+          "1:393",
+          "VECTOR",
+          "Ellipse 601",
+          26.83,
+          24.51,
+          true,
+          null
+        ],
+        [
+          "1:394",
+          "VECTOR",
+          "Vector 260",
+          21.82,
+          33.99,
+          true,
+          null
+        ],
+        [
+          "1:395",
+          "VECTOR",
+          "Vector 264",
+          14.1,
+          12.75,
+          true,
+          null
+        ],
+        [
+          "1:396",
+          "GROUP",
+          "Group 1000000834",
+          61.24,
+          36.38,
+          true,
+          [
+            [
+              "1:397",
+              "BOOLEAN_OPERATION",
+              "Union",
+              61.24,
+              30.7,
+              true,
+              [
+                [
+                  "1:398",
+                  "VECTOR",
+                  "Ellipse 559",
+                  34.6,
+                  30.7,
+                  true,
+                  null
+                ],
+                [
+                  "1:399",
+                  "VECTOR",
+                  "Ellipse 560",
+                  34.6,
+                  30.7,
+                  true,
+                  null
+                ]
+              ]
+            ],
+            [
+              "1:400",
+              "VECTOR",
+              "Ellipse 564",
+              13.92,
+              9.25,
+              true,
+              null
+            ],
+            [
+              "1:401",
+              "VECTOR",
+              "Ellipse 565",
+              13.92,
+              9.15,
+              true,
+              null
+            ],
+            [
+              "1:402",
+              "VECTOR",
+              "Ellipse 566",
+              8.91,
+              11.13,
+              true,
+              null
+            ],
+            [
+              "1:403",
+              "VECTOR",
+              "Vector 262",
+              1.36,
+              3.27,
+              true,
+              null
+            ],
+            [
+              "1:404",
+              "VECTOR",
+              "Vector 263",
+              1.36,
+              3.27,
+              true,
+              null
+            ],
+            [
+              "1:405",
+              "BOOLEAN_OPERATION",
+              "Subtract",
+              5.04,
+              6.48,
+              true,
+              [
+                [
+                  "1:406",
+                  "VECTOR",
+                  "Ellipse 567",
+                  5.67,
+                  7.26,
+                  true,
+                  null
+                ],
+                [
+                  "1:407",
+                  "VECTOR",
+                  "Ellipse 568",
+                  5.48,
+                  7.26,
+                  true,
+                  null
+                ]
+              ]
+            ]
+          ]
+        ]
+      ]
+    ],
+    [
+      "1:635",
+      "GROUP",
+      "ds/illustration/jm-illustration-ollie",
+      178.71,
+      157.38,
+      true,
+      [
+        [
+          "1:636",
+          "GROUP",
+          "Group 1171276152",
+          178.71,
+          157.38,
+          true,
+          [
+            [
+              "1:637",
+              "VECTOR",
+              "Vector 508",
+              51.55,
+              38.67,
+              true,
+              null
+            ],
+            [
+              "1:638",
+              "VECTOR",
+              "Ellipse 1988",
+              98.63,
+              137.83,
+              true,
+              null
+            ],
+            [
+              "1:639",
+              "VECTOR",
+              "Vector 510",
+              8.3,
+              20.89,
+              true,
+              null
+            ],
+            [
+              "1:640",
+              "VECTOR",
+              "Vector 511",
+              8.3,
+              20.89,
+              true,
+              null
+            ],
+            [
+              "1:641",
+              "GROUP",
+              "Group 1171276200",
+              86.14,
+              54.95,
+              true,
+              [
+                [
+                  "1:642",
+                  "VECTOR",
+                  "Ellipse 1989",
+                  11.6,
+                  16.49,
+                  true,
+                  null
+                ],
+                [
+                  "1:643",
+                  "VECTOR",
+                  "Ellipse 1990",
+                  7.33,
+                  3.3,
+                  true,
+                  null
+                ],
+                [
+                  "1:644",
+                  "GROUP",
+                  "Group 1171276148",
+                  81.3,
+                  45.6,
+                  true,
+                  [
+                    [
+                      "1:645",
+                      "BOOLEAN_OPERATION",
+                      "Union",
+                      81.3,
+                      45.6,
+                      true,
+                      [
+                        [
+                          "1:646",
+                          "VECTOR",
+                          "Ellipse 559",
+                          42.63,
+                          39.14,
+                          true,
+                          null
+                        ],
+                        [
+                          "1:647",
+                          "VECTOR",
+                          "Ellipse 560",
+                          46.94,
+                          43.11,
+                          true,
+                          null
+                        ]
+                      ]
+                    ],
+                    [
+                      "1:648",
+                      "GROUP",
+                      "Group 1000000881",
+                      16.33,
+                      13.01,
+                      true,
+                      [
+                        [
+                          "1:649",
+                          "VECTOR",
+                          "Ellipse 566",
+                          14.99,
+                          11.32,
+                          true,
+                          null
+                        ],
+                        [
+                          "1:650",
+                          "BOOLEAN_OPERATION",
+                          "Subtract",
+                          0,
+                          0,
+                          true,
+                          []
+                        ]
+                      ]
+                    ]
+                  ]
+                ],
+                [
+                  "1:651",
+                  "GROUP",
+                  "Group 1171276149",
+                  20.41,
+                  20.41,
+                  true,
+                  [
+                    [
+                      "1:652",
+                      "ELLIPSE",
+                      "Ellipse 1985",
+                      18.99,
+                      18.99,
+                      true,
+                      null
+                    ],
+                    [
+                      "1:653",
+                      "VECTOR",
+                      "Vector 158 (Stroke)",
+                      4.33,
+                      3.98,
+                      true,
+                      null
+                    ]
+                  ]
+                ],
+                [
+                  "1:654",
+                  "GROUP",
+                  "Group 1171276150",
+                  19.32,
+                  19.32,
+                  true,
+                  [
+                    [
+                      "1:655",
+                      "ELLIPSE",
+                      "Ellipse 1985",
+                      17.97,
+                      17.97,
+                      true,
+                      null
+                    ],
+                    [
+                      "1:656",
+                      "VECTOR",
+                      "Vector 158 (Stroke)",
+                      4.1,
+                      3.76,
+                      true,
+                      null
+                    ]
+                  ]
+                ]
+              ]
+            ],
+            [
+              "1:657",
+              "VECTOR",
+              "Ellipse 1991",
+              44.18,
+              37.23,
+              true,
+              null
+            ],
+            [
+              "1:658",
+              "VECTOR",
+              "Vector 509",
+              47.32,
+              34.02,
+              true,
+              null
+            ],
+            [
+              "1:659",
+              "VECTOR",
+              "Vector 512",
+              48,
+              38.56,
+              true,
+              null
+            ],
+            [
+              "1:660",
+              "GROUP",
+              "Speed1",
+              31.01,
+              8.86,
+              true,
+              [
+                [
+                  "1:661",
+                  "LINE",
+                  "Line 126",
+                  24.91,
+                  0,
+                  true,
+                  null
+                ],
+                [
+                  "1:662",
+                  "LINE",
+                  "Line 127",
+                  31,
+                  0,
+                  true,
+                  null
+                ],
+                [
+                  "1:663",
+                  "LINE",
+                  "Line 128",
+                  24.91,
+                  0,
+                  true,
+                  null
+                ]
+              ]
+            ],
+            [
+              "1:664",
+              "GROUP",
+              "Speed2",
+              42.08,
+              4.43,
+              true,
+              [
+                [
+                  "1:665",
+                  "LINE",
+                  "Line 127",
+                  42.08,
+                  0,
+                  true,
+                  null
+                ],
+                [
+                  "1:666",
+                  "LINE",
+                  "Line 128",
+                  33.8,
+                  0,
+                  true,
+                  null
+                ]
+              ]
+            ]
+          ]
+        ]
+      ]
+    ]
+  ]
+}

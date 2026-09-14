@@ -1,7 +1,12 @@
 import { readFileSync, writeFileSync, mkdirSync } from 'node:fs';
 import { build } from 'esbuild';
+const {version}=JSON.parse(readFileSync('package.json','utf8'));
+if(!/^\d+\.\d+\.\d+$/.test(version))throw Error('Invalid plugin version');
+const manifest=JSON.parse(readFileSync('manifest.json','utf8'));
+manifest.name=`DS Foundry v${version}`;
+writeFileSync('manifest.json',JSON.stringify(manifest,null,2)+'\n');
 mkdirSync('dist', { recursive: true });
 const result = await build({entryPoints:['ui/assets.js'],bundle:true,format:'iife',target:'es2020',write:false});
 const script=result.outputFiles[0].text.replace(/<\/script/gi, '<\\/script');
-writeFileSync('dist/ui.html',readFileSync('ui/ui.html','utf8').replace('<!-- CANONICAL_SCRIPT -->','<script>'+script+'</script>'));
+writeFileSync('dist/ui.html',readFileSync('ui/ui.html','utf8').replaceAll('__PLUGIN_VERSION__',version).replace('<!-- CANONICAL_SCRIPT -->','<script>'+script+'</script>'));
 console.log('dist/ui.html updated');

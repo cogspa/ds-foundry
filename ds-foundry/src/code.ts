@@ -76,6 +76,19 @@ figma.ui.onmessage = async (msg: { type: string; [k: string]: any }) => {
       return;
     }
 
+    if(msg.type==='assets_rebuild'){
+      if(busy)return;
+      busy=true;setCancelled(false);
+      try{
+        post({type:'progress',pct:1,msg:'Rescanning original artwork across the document…'});
+        inventory=await scan('document',msg.baseGrid===8?8:4);
+        post({type:'scanned',continuing:true,summary:summarize(inventory,msg.prefix||'ds/')});
+        const result=await build(inventory,{prefix:msg.prefix||'ds/',baseGrid:msg.baseGrid===8?8:4,labels:false,rename:false,labelText:false,styles:false,variables:false,foundations:false,components:false,icons:false,assets:true,tidy:false});
+        post({type:'built',result});
+        figma.notify('Assets rebuilt from saved names and current logo approvals.');
+      }finally{busy=false;}
+      return;
+    }
     if (msg.type === 'build') {
       if (busy) return;
       if (!inventory) { post({ type: 'error', msg: 'Scan the file first.' }); return; }
@@ -116,9 +129,15 @@ figma.ui.onmessage = async (msg: { type: string; [k: string]: any }) => {
 
     if (msg.type === 'ai_prepare') {
       if (busy) return;
-      if (!inventory) { post({ type: 'error', msg: 'Scan the file first.' }); return; }
+      if (!inventory && !msg.rescanDocument) { post({ type: 'error', msg: 'Scan the file first.' }); return; }
       busy = true; setCancelled(false);
-      await prepareAiItems(inventory, msg.targets, msg.maxItems || 300);
+      if(msg.rescanDocument){
+        post({type:'progress',pct:1,msg:msg.charactersOnly?'Scanning original artwork and nested character groups…':'Rescanning original artwork for the full design system…'});
+        invalidateAssets();
+        inventory=await scan(msg.charactersOnly&&msg.characterScope==='selection'?'selection':'document',msg.baseGrid===8?8:4);
+        post({type:'scanned',newScan:true,continuing:true,summary:summarize(inventory,msg.prefix||'ds/')});
+      }
+      await prepareAiItems(inventory!, msg.targets, Math.max(1,Math.min(2000,msg.maxItems || 300)),!!msg.charactersOnly);
       busy = false; return;
     }
 

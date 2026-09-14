@@ -25,28 +25,6 @@
     }
   }
 
-  // src/artwork.ts
-  var ART = /* @__PURE__ */ new Set(["icon", "logo", "character", "illustration", "symbol"]);
-  function artworkBoundary(node, category) {
-    if (!("children" in node) || !node.children.length || !ART.has(category)) return false;
-    if (category === "logo") return true;
-    if (node.type === "COMPONENT" || node.type === "INSTANCE" || node.type === "BOOLEAN_OPERATION") return true;
-    const explicit = node.getPluginData("dsf.semanticName") || readAssetName(node)?.identity;
-    if (explicit) return true;
-    const clusters = node.children.filter((n) => "children" in n && n.children.length > 0 && n.visible !== false && n.width * n.height >= node.width * node.height * 0.15);
-    for (let i = 0; i < clusters.length; i++) for (let j = i + 1; j < clusters.length; j++) {
-      const a = clusters[i], b = clusters[j];
-      const overlap = Math.max(0, Math.min(a.x + a.width, b.x + b.width) - Math.max(a.x, b.x)) * Math.max(0, Math.min(a.y + a.height, b.y + b.height) - Math.max(a.y, b.y));
-      if (overlap < Math.min(a.width * a.height, b.width * b.height) * 0.05) return false;
-    }
-    return true;
-  }
-  function artworkRole(node) {
-    const data = readAssetName(node);
-    if (data?.appearance.crop) return { artworkRole: "part", partOf: data.identity };
-    return { artworkRole: "whole", partOf: void 0 };
-  }
-
   // src/util.ts
   var PD_ASSET_ID = "dsf.assetId";
   var PD_ASSET_VARIANT = "dsf.assetVariant";
@@ -142,6 +120,475 @@
   function snap(v, grid) {
     if (grid <= 1) return Math.round(v);
     return Math.max(0, Math.round(v / grid) * grid);
+  }
+
+  // src/identity.ts
+  var q = (v) => Math.round(v * 1e4) / 1e4;
+  function identityHash(s) {
+    let a = 2166136261, b = 5381;
+    for (let i = 0; i < s.length; i++) {
+      a = Math.imul(a ^ s.charCodeAt(i), 16777619);
+      b = Math.imul(b, 33) ^ s.charCodeAt(i);
+    }
+    return (a >>> 0).toString(16).padStart(8, "0") + (b >>> 0).toString(16).padStart(8, "0");
+  }
+  function normalizeVisibleText(s) {
+    return s.normalize("NFKC").toLowerCase().replace(/[™®©]/g, "").replace(/[‐‑–—-]/g, " ").replace(/\s+/g, " ").trim();
+  }
+  var CTA = /^(learn more|read more|buy now|shop now|click here|sign up|log in|get started|submit|next|back|download|continue)$/;
+  function identityText(s) {
+    const t = normalizeVisibleText(s);
+    return t.length >= 2 && t.length <= 120 && !CTA.test(t) ? t : "";
+  }
+  function normalizeNetwork(v, w, h) {
+    if (!v.vertices.length || !v.segments.length || w <= 0 || h <= 0) throw new Error("empty geometry");
+    const ox = Math.min(...v.vertices.map((p) => p.x)), oy = Math.min(...v.vertices.map((p) => p.y));
+    return {
+      vertices: v.vertices.map((p) => [q((p.x - ox) / w), q((p.y - oy) / h), p.strokeCap || "", p.strokeJoin || "", q((p.cornerRadius || 0) / Math.max(w, h))]),
+      segments: v.segments.map((s) => [s.start, s.end, q((s.tangentStart?.x || 0) / w), q((s.tangentStart?.y || 0) / h), q((s.tangentEnd?.x || 0) / w), q((s.tangentEnd?.y || 0) / h)]),
+      regions: (v.regions || []).map((r) => [r.windingRule, r.loops])
+    };
+  }
+  function extractIdentity(node) {
+    let reliable = true, nodes = 0, geometryPoints = 0, vectors = 0, textCount = 0, filled = false, stroked = false, unknownPaint = false;
+    const texts = [], colors = /* @__PURE__ */ new Set(), warnings = [];
+    const walk = (n, depth) => {
+      if (++nodes > 1500 || depth > 24) {
+        reliable = false;
+        return "truncated";
+      }
+      if (n.visible === false || "opacity" in n && n.opacity === 0) return null;
+      const w = n.width, h = n.height;
+      if (!(w > 0 && h > 0)) reliable = false;
+      for (const key of ["fills", "strokes"]) {
+        if (!(key in n)) continue;
+        if (key === "strokes" && "strokeWeight" in n && n.strokeWeight === 0) continue;
+        const paints = n[key];
+        if (!Array.isArray(paints)) {
+          unknownPaint = true;
+          continue;
+        }
+        for (const paint of paints) {
+          if (paint.visible === false || paint.opacity === 0) continue;
+          if (key === "fills") filled = true;
+          else stroked = true;
+          if (paint.type === "SOLID") {
+            colors.add([paint.color.r, paint.color.g, paint.color.b].map((v) => Math.round(v * 255)).join(","));
+          } else {
+            unknownPaint = true;
+            if (paint.type === "IMAGE" || paint.type === "VIDEO") reliable = false;
+          }
+        }
+      }
+      const o = { type: ["GROUP", "FRAME", "COMPONENT", "INSTANCE"].includes(n.type) ? "CONTAINER" : n.type, aspect: q(w / (h || 1)), mask: "isMask" in n ? n.isMask : false };
+      if ("clipsContent" in n) o.clips = n.clipsContent;
+      if (n.type === "VECTOR") {
+        vectors++;
+        try {
+          const network = n.vectorNetwork;
+          geometryPoints += network.vertices.length + network.segments.length;
+          if (geometryPoints > 2e4) throw new Error("geometry budget");
+          o.network = normalizeNetwork(network, w, h);
+        } catch {
+          reliable = false;
+        }
+      } else if (n.type === "TEXT") {
+        textCount++;
+        texts.push(n.characters);
+        o.text = normalizeVisibleText(n.characters);
+        o.font = n.fontName;
+        o.fontSize = typeof n.fontSize === "number" ? q(n.fontSize / (h || 1)) : "mixed";
+        if (typeof n.fontName === "symbol" || typeof n.fontSize === "symbol") reliable = false;
+      } else if (["RECTANGLE", "ELLIPSE", "POLYGON", "STAR", "LINE"].includes(n.type)) {
+        const a = n;
+        o.corners = ["topLeftRadius", "topRightRadius", "bottomRightRadius", "bottomLeftRadius"].map((k) => q((a[k] || 0) / (Math.max(w, h) || 1)));
+        o.points = a.pointCount;
+        o.inner = a.innerRadius;
+        o.arc = a.arcData;
+      } else if (!("children" in n)) reliable = false;
+      if (n.type === "BOOLEAN_OPERATION") o.operation = n.booleanOperation;
+      if ("children" in n) {
+        const budget = Math.max(0, 1500 - nodes);
+        if (n.children.length > budget) reliable = false;
+        o.children = n.children.slice(0, budget).filter((k) => k.visible !== false && (!("opacity" in k) || k.opacity !== 0)).map((k) => {
+          const t = k.relativeTransform;
+          return { bounds: [q(k.width / (w || 1)), q(k.height / (h || 1))], transform: [q(t[0][0]), q(t[0][1]), q(t[0][2] / (w || 1)), q(t[1][0]), q(t[1][1]), q(t[1][2] / (h || 1))], geometry: walk(k, depth + 1) };
+        });
+      }
+      return o;
+    };
+    const geometry = walk(node, 0);
+    if (!vectors && !textCount) reliable = false;
+    if (!reliable) warnings.push("Geometry incomplete or non-distinctive; requires other evidence");
+    const variant = {};
+    if (!unknownPaint && colors.size) {
+      if (colors.size > 1) variant.color = "multi";
+      else {
+        const [r, g, b] = [...colors][0].split(",").map((v) => +v / 255);
+        const { h, s, l } = rgbToHsl(r, g, b);
+        variant.color = l < 0.08 ? "black" : l > 0.95 ? "white" : s < 0.12 ? "gray" : hueName(h);
+      }
+      if (!filled && stroked) variant.treatment = "outline";
+      else if (colors.size === 1 && variant.color !== "white") variant.treatment = "monochrome";
+    }
+    const aspect = node.width / (node.height || 1);
+    variant.orientation = aspect >= 1.8 ? "horizontal" : aspect <= 0.55 ? "vertical" : aspect >= 0.85 && aspect <= 1.18 ? "square" : void 0;
+    if (textCount && !vectors) variant.lockup = "wordmark";
+    else if (textCount && vectors) variant.lockup = textCount > 1 ? "tagline-lockup" : "mark-wordmark";
+    if (textCount && vectors && "layoutMode" in node && node.layoutMode === "VERTICAL" && "children" in node && node.children.length <= 4) variant.orientation = "stacked";
+    return { version: 1, geometrySignature: reliable ? "g1:" + identityHash(JSON.stringify(geometry)) : void 0, geometryReliable: reliable, visibleText: identityText(texts.join(" ")), variant, warnings };
+  }
+  async function componentRelationship(node) {
+    let main = node.type === "COMPONENT" ? node : null;
+    if (node.type === "INSTANCE") {
+      try {
+        main = await node.getMainComponentAsync();
+      } catch {
+      }
+    }
+    if (!main) return {};
+    const set = main.parent?.type === "COMPONENT_SET" ? main.parent : main;
+    return { family: set.key ? "component:" + set.key : void 0, mainComponentId: main.id };
+  }
+
+  // src/logo-approval.ts
+  function logoApprovalStamp(node) {
+    let count = 0;
+    const walk = (n, depth) => {
+      if (++count > 1500 || depth > 24) throw Error("Artwork too complex");
+      return [
+        n.type,
+        n.width,
+        n.height,
+        n.relativeTransform,
+        n.visible,
+        n.opacity,
+        n.fills,
+        n.strokes,
+        n.strokeWeight,
+        n.type === "TEXT" ? [n.characters, n.fontName, n.fontSize, n.letterSpacing, n.lineHeight] : null,
+        n.type === "VECTOR" ? n.vectorNetwork : null,
+        n.type === "BOOLEAN_OPERATION" ? n.booleanOperation : null,
+        "children" in n ? n.children.map((c) => walk(c, depth + 1)) : null
+      ];
+    };
+    try {
+      return identityHash(JSON.stringify(walk(node, 0)));
+    } catch {
+      return null;
+    }
+  }
+  function hasCurrentLogoApproval(node) {
+    const saved = node.getPluginData("dsf.logoApproval");
+    if (!saved) return false;
+    try {
+      const a = JSON.parse(saved);
+      return a.approved === true && !!a.stamp && a.stamp === logoApprovalStamp(node);
+    } catch {
+      return false;
+    }
+  }
+  function approveLogo(node, name) {
+    const stamp = logoApprovalStamp(node);
+    if (!stamp) throw Error("Could not fingerprint this logo for approval.");
+    node.setPluginData("dsf.logoApproval", JSON.stringify({ approved: true, stamp, name }));
+  }
+
+  // src/naming.ts
+  function neutralStep(l) {
+    const s = Math.round((1 - l) * 10) * 100;
+    return clamp(s === 0 ? 50 : s, 50, 950);
+  }
+  function chromaticStep(l, anchorL) {
+    const s = 500 + Math.round((anchorL - l) * 9) * 100;
+    return clamp(s, 50, 950);
+  }
+  function nameColors(colors) {
+    const families = /* @__PURE__ */ new Map();
+    const neutrals = [];
+    for (const c of colors) {
+      const { s, l } = rgbToHsl(c.r, c.g, c.b);
+      const isNeutral = s < 0.12 || l > 0.985 || l < 0.02 || s < 0.28 && (l > 0.88 || l < 0.12);
+      if (isNeutral) {
+        neutrals.push(c);
+        continue;
+      }
+      const { h } = rgbToHsl(c.r, c.g, c.b);
+      const fam = hueName(h);
+      if (!families.has(fam)) families.set(fam, []);
+      families.get(fam).push(c);
+    }
+    const ranked = [...families.entries()].sort((a, b) => sum(b[1]) - sum(a[1]));
+    const roleOf = /* @__PURE__ */ new Map();
+    const taken = /* @__PURE__ */ new Set();
+    if (ranked[0]) {
+      roleOf.set(ranked[0][0], "primary");
+      taken.add("primary");
+    }
+    if (ranked[1]) {
+      roleOf.set(ranked[1][0], "secondary");
+      taken.add("secondary");
+    }
+    for (const [fam] of ranked.slice(2)) {
+      let role = fam;
+      if (fam === "red" && !taken.has("error")) role = "error";
+      else if ((fam === "green" || fam === "lime") && !taken.has("success")) role = "success";
+      else if ((fam === "yellow" || fam === "orange") && !taken.has("warning")) role = "warning";
+      else if ((fam === "blue" || fam === "cyan") && !taken.has("info")) role = "info";
+      if (taken.has(role)) role = fam;
+      if (taken.has(role)) role = `${fam}-2`;
+      taken.add(role);
+      roleOf.set(fam, role);
+    }
+    const out = [];
+    for (const [fam, list] of families) {
+      const role = roleOf.get(fam) || fam;
+      assignSteps(list, role, out);
+    }
+    assignSteps(neutrals, "neutral", out);
+    const order = ["primary", "secondary", "neutral"];
+    out.sort((a, b) => {
+      const ia = order.indexOf(a.role), ib = order.indexOf(b.role);
+      const ra = ia === -1 ? 99 : ia, rb = ib === -1 ? 99 : ib;
+      if (ra !== rb) return ra - rb;
+      if (a.role !== b.role) return a.role < b.role ? -1 : 1;
+      return a.step - b.step;
+    });
+    return out;
+  }
+  function sum(list) {
+    return list.reduce((n, c) => n + c.count, 0);
+  }
+  function assignSteps(list, role, out) {
+    if (!list.length) return;
+    const sorted = [...list].sort((a, b) => rgbToHsl(b.r, b.g, b.b).l - rgbToHsl(a.r, a.g, a.b).l);
+    const anchor = [...list].sort((a, b) => b.count - a.count)[0];
+    const anchorL = rgbToHsl(anchor.r, anchor.g, anchor.b).l;
+    const used = /* @__PURE__ */ new Set();
+    for (const c of sorted) {
+      const { l } = rgbToHsl(c.r, c.g, c.b);
+      let step;
+      if (role === "neutral" && l > 0.985) step = 0;
+      else if (role === "neutral" && l < 0.02) step = 1e3;
+      else if (role === "neutral") step = neutralStep(l);
+      else if (sorted.length === 1) step = 500;
+      else step = chromaticStep(l, anchorL);
+      while (used.has(step)) step += 50;
+      used.add(step);
+      c.role = role;
+      c.step = step;
+      c.name = `${role}/${step}`;
+      if (c.a < 0.999) c.name += `-a${Math.round(c.a * 100)}`;
+      out.push(c);
+    }
+  }
+  function weightClass(style) {
+    const s = style.toLowerCase();
+    if (/black|heavy|extra ?bold|ultra/.test(s)) return { name: "black", css: 800 };
+    if (/bold/.test(s) && !/semi/.test(s)) return { name: "bold", css: 700 };
+    if (/semi|demi/.test(s)) return { name: "semibold", css: 600 };
+    if (/medium/.test(s)) return { name: "medium", css: 500 };
+    if (/light|thin|hairline/.test(s)) return { name: "light", css: 300 };
+    return { name: "regular", css: 400 };
+  }
+  function typeRole(size) {
+    if (size >= 40) return "display";
+    if (size >= 24) return "heading";
+    if (size >= 18) return "title";
+    if (size >= 14) return "body";
+    return "caption";
+  }
+  var SIZE_LABELS = {
+    1: ["md"],
+    2: ["lg", "sm"],
+    3: ["lg", "md", "sm"],
+    4: ["xl", "lg", "md", "sm"],
+    5: ["xl", "lg", "md", "sm", "xs"],
+    6: ["2xl", "xl", "lg", "md", "sm", "xs"]
+  };
+  function nameTypes(types) {
+    for (const t of types) {
+      t.role = typeRole(t.size);
+      const w = weightClass(t.style);
+      t.weight = w.name;
+      t.cssWeight = w.css;
+    }
+    const byRole = /* @__PURE__ */ new Map();
+    for (const t of types) {
+      if (!byRole.has(t.role)) byRole.set(t.role, []);
+      byRole.get(t.role).push(t);
+    }
+    const used = /* @__PURE__ */ new Set();
+    for (const [role, list] of byRole) {
+      const sizes = [...new Set(list.map((t) => t.size))].sort((a, b) => b - a);
+      const labels = SIZE_LABELS[sizes.length] || sizes.map((_, i) => String(sizes.length - i));
+      const labelOf = /* @__PURE__ */ new Map();
+      sizes.forEach((s, i) => labelOf.set(s, labels[i]));
+      for (const t of list) {
+        let name = `${role}/${labelOf.get(t.size)}/${t.weight}`;
+        let n = 2;
+        while (used.has(name)) name = `${role}/${labelOf.get(t.size)}/${t.weight}-${n++}`;
+        used.add(name);
+        t.name = name;
+      }
+    }
+    const roleOrder = ["display", "heading", "title", "body", "caption"];
+    types.sort((a, b) => {
+      const r = roleOrder.indexOf(a.role) - roleOrder.indexOf(b.role);
+      if (r !== 0) return r;
+      if (a.size !== b.size) return b.size - a.size;
+      return b.cssWeight - a.cssWeight;
+    });
+    return types;
+  }
+  function nameSpacing(list) {
+    list.sort((a, b) => a.value - b.value);
+    for (const s of list) s.name = `space/${s.value}`;
+    return list;
+  }
+  var RADIUS_LABELS = {
+    1: ["md"],
+    2: ["sm", "lg"],
+    3: ["sm", "md", "lg"],
+    4: ["sm", "md", "lg", "xl"],
+    5: ["xs", "sm", "md", "lg", "xl"],
+    6: ["xs", "sm", "md", "lg", "xl", "2xl"],
+    7: ["xs", "sm", "md", "lg", "xl", "2xl", "3xl"]
+  };
+  function nameRadii(list) {
+    list.sort((a, b) => a.value - b.value);
+    const full = list.filter((r) => r.value >= 999);
+    const rest = list.filter((r) => r.value < 999);
+    const labels = RADIUS_LABELS[rest.length] || rest.map((_, i) => String(i + 1));
+    rest.forEach((r, i) => r.name = `radius/${labels[i]}`);
+    full.forEach((r) => r.name = "radius/full");
+    return [...rest, ...full];
+  }
+  function nameEffects(list) {
+    const shadows = list.filter((e) => e.effects.some((x) => x.type === "DROP_SHADOW" || x.type === "INNER_SHADOW"));
+    const blurs = list.filter((e) => !shadows.includes(e));
+    const depth = (e) => e.effects.reduce((n, x) => n + ("radius" in x ? x.radius : 0) + ("offset" in x ? Math.abs(x.offset.y) : 0), 0);
+    shadows.sort((a, b) => depth(a) - depth(b));
+    blurs.sort((a, b) => depth(a) - depth(b));
+    shadows.forEach((e, i) => e.name = `elevation/${i + 1}`);
+    blurs.forEach((e, i) => e.name = `blur/${i + 1}`);
+    return [...shadows, ...blurs];
+  }
+  function sizeClass(h) {
+    if (h <= 32) return "sm";
+    if (h <= 44) return "md";
+    return "lg";
+  }
+  var DEFAULT_NAME = /^(vector|group|frame|rectangle|ellipse|line|polygon|star|boolean|union|subtract|intersect|exclude|path|shape|layer|image|mask)(\s*\d+)?(\s*copy(\s*\d+)?)?$/i;
+  function isDefaultName(name) {
+    return DEFAULT_NAME.test(name.trim());
+  }
+  function elementLabel(rec, prefix) {
+    const p = prefix;
+    const s = isDefaultName(rec.name) && rec.desc ? rec.desc : slug(rec.name);
+    const t = rec.text ? slug(rec.text, 24) : "";
+    const cat = rec.category;
+    switch (cat) {
+      case "screen":
+        return `${p}screen/${s}`;
+      case "section":
+        return `${p}section/${s}`;
+      case "nav":
+        return `${p}nav/${s}`;
+      case "card":
+        return `${p}card/${s}`;
+      case "button":
+        return `${p}button/${rec.fillRole || "default"}-${rec.sizeClass}${t ? "/" + t : ""}`;
+      case "input":
+        return `${p}input/${rec.sizeClass}${t ? "/" + t : ""}`;
+      case "badge":
+        return `${p}badge/${rec.fillRole || "default"}${t ? "/" + t : ""}`;
+      case "avatar":
+        return `${p}avatar/${rec.sizeClass}`;
+      case "image":
+        return `${p}image/${s}`;
+      case "icon":
+        return `${p}icon/${s}`;
+      case "divider":
+        return `${p}divider`;
+      case "list-item":
+        return `${p}list-item/${s}`;
+      case "checkbox":
+        return `${p}checkbox`;
+      case "toggle":
+        return `${p}toggle`;
+      case "text":
+        return `${p}text/${(rec.textRole || "body").replace(/\//g, "-")}`;
+      case "tagline":
+        return `${p}tagline/${t || s}`;
+      case "copy":
+        return `${p}copy/${t || s}`;
+      case "logo":
+        return `${p}logo/${t || s}`;
+      case "character":
+        return `${p}character/${s}`;
+      case "illustration":
+        return `${p}illustration/${s}`;
+      case "symbol":
+        return `${p}symbol/${s}`;
+      case "shape":
+        return `${p}shape/${rec.desc || s}`;
+      case "debris":
+        return `${p}debris/${rec.desc || s}`;
+      default:
+        return `${p}${s}`;
+    }
+  }
+
+  // src/asset-labels.ts
+  function descriptiveName(value, prefix = "ds/") {
+    if (!value) return;
+    let path = value.trim();
+    if (prefix && path.startsWith(prefix)) path = path.slice(prefix.length);
+    path = path.replace(/^(?:[^/]+\/)?(icon|symbol|logo|character|illustration|image|avatar|screen|section|nav|card|button|input|shape|debris|component)\//, "");
+    const leaf = path.split("/").pop().replace(/[-_]/g, " ");
+    if (!leaf || isDefaultName(leaf) || /^(icon|symbol|logo|character|illustration|component|screen|section|other)(\s*\d+)?$/i.test(leaf)) return;
+    if (/needs[\s-]+identification|possible[\s-]+debris|\d+[- ]piece|\d+[x×]\d+/i.test(path)) return;
+    return path;
+  }
+  function establishedName(rec, prefix = "ds/") {
+    if (rec.semanticName?.trim() && !/needs[\s-]+identification/i.test(rec.semanticName)) return rec.semanticName.trim();
+    if (rec.assetName) return assetName(rec.assetName);
+    return descriptiveName(rec.name, prefix) || descriptiveName(rec.originalName, prefix);
+  }
+
+  // src/character-parts.ts
+  function characterPart(name = "", crop = "") {
+    if (crop && !/^(whole|full|full-body|uncropped)$/i.test(crop)) return true;
+    const normalized = name.toLowerCase().replace(/[_/\s]+/g, "-").replace(/-\d+$/, "");
+    if (/(?:^|-)(?:full|whole)-body$/.test(normalized)) return false;
+    return /(?:^|-)(?:body-only|body|wing|wings|beak|eye|eyes|eyes-only|face-only|head-only|foot|feet|hand|hands|tail|arm|arms|leg|legs)(?:-only)?$/.test(normalized);
+  }
+  function characterLabel(name = "") {
+    return /(?:^|[\s/_-])(ollie|owl|owls|mascot|character|penguin|bird)(?:$|[\s/_-])/i.test(name);
+  }
+
+  // src/artwork.ts
+  var ART = /* @__PURE__ */ new Set(["icon", "logo", "character", "illustration", "symbol"]);
+  function artworkBoundary(node, category) {
+    if (!("children" in node) || !node.children.length || !ART.has(category)) return false;
+    if (category === "logo") return true;
+    if (node.type === "COMPONENT" || node.type === "INSTANCE" || node.type === "BOOLEAN_OPERATION") return true;
+    const explicit = node.getPluginData("dsf.semanticName") || readAssetName(node)?.identity;
+    if (explicit) return true;
+    const clusters = node.children.filter((n) => "children" in n && n.children.length > 0 && n.visible !== false && n.width * n.height >= node.width * node.height * 0.15);
+    for (let i = 0; i < clusters.length; i++) for (let j = i + 1; j < clusters.length; j++) {
+      const a = clusters[i], b = clusters[j];
+      const overlap = Math.max(0, Math.min(a.x + a.width, b.x + b.width) - Math.max(a.x, b.x)) * Math.max(0, Math.min(a.y + a.height, b.y + b.height) - Math.max(a.y, b.y));
+      if (overlap < Math.min(a.width * a.height, b.width * b.height) * 0.05) return false;
+    }
+    return true;
+  }
+  function artworkRole(node) {
+    const data = readAssetName(node);
+    const name = node.getPluginData("dsf.semanticName") || data?.identity || node.getPluginData("dsf.originalName") || node.name;
+    if (characterPart("", data?.appearance.crop) || (node.getPluginData("dsf.category") === "character" || characterLabel(name)) && characterPart(name)) return { artworkRole: "part", partOf: data?.identity || name };
+    return { artworkRole: "whole", partOf: void 0 };
   }
 
   // src/classify.ts
@@ -460,256 +907,20 @@
     return { category: "other", text: primaryText, fillHex, strokeHex, fingerprint: fp("other"), desc: "" };
   }
 
-  // src/naming.ts
-  function neutralStep(l) {
-    const s = Math.round((1 - l) * 10) * 100;
-    return clamp(s === 0 ? 50 : s, 50, 950);
-  }
-  function chromaticStep(l, anchorL) {
-    const s = 500 + Math.round((anchorL - l) * 9) * 100;
-    return clamp(s, 50, 950);
-  }
-  function nameColors(colors) {
-    const families = /* @__PURE__ */ new Map();
-    const neutrals = [];
-    for (const c of colors) {
-      const { s, l } = rgbToHsl(c.r, c.g, c.b);
-      const isNeutral = s < 0.12 || l > 0.985 || l < 0.02 || s < 0.28 && (l > 0.88 || l < 0.12);
-      if (isNeutral) {
-        neutrals.push(c);
-        continue;
-      }
-      const { h } = rgbToHsl(c.r, c.g, c.b);
-      const fam = hueName(h);
-      if (!families.has(fam)) families.set(fam, []);
-      families.get(fam).push(c);
-    }
-    const ranked = [...families.entries()].sort((a, b) => sum(b[1]) - sum(a[1]));
-    const roleOf = /* @__PURE__ */ new Map();
-    const taken = /* @__PURE__ */ new Set();
-    if (ranked[0]) {
-      roleOf.set(ranked[0][0], "primary");
-      taken.add("primary");
-    }
-    if (ranked[1]) {
-      roleOf.set(ranked[1][0], "secondary");
-      taken.add("secondary");
-    }
-    for (const [fam] of ranked.slice(2)) {
-      let role = fam;
-      if (fam === "red" && !taken.has("error")) role = "error";
-      else if ((fam === "green" || fam === "lime") && !taken.has("success")) role = "success";
-      else if ((fam === "yellow" || fam === "orange") && !taken.has("warning")) role = "warning";
-      else if ((fam === "blue" || fam === "cyan") && !taken.has("info")) role = "info";
-      if (taken.has(role)) role = fam;
-      if (taken.has(role)) role = `${fam}-2`;
-      taken.add(role);
-      roleOf.set(fam, role);
-    }
-    const out = [];
-    for (const [fam, list] of families) {
-      const role = roleOf.get(fam) || fam;
-      assignSteps(list, role, out);
-    }
-    assignSteps(neutrals, "neutral", out);
-    const order = ["primary", "secondary", "neutral"];
-    out.sort((a, b) => {
-      const ia = order.indexOf(a.role), ib = order.indexOf(b.role);
-      const ra = ia === -1 ? 99 : ia, rb = ib === -1 ? 99 : ib;
-      if (ra !== rb) return ra - rb;
-      if (a.role !== b.role) return a.role < b.role ? -1 : 1;
-      return a.step - b.step;
-    });
-    return out;
-  }
-  function sum(list) {
-    return list.reduce((n, c) => n + c.count, 0);
-  }
-  function assignSteps(list, role, out) {
-    if (!list.length) return;
-    const sorted = [...list].sort((a, b) => rgbToHsl(b.r, b.g, b.b).l - rgbToHsl(a.r, a.g, a.b).l);
-    const anchor = [...list].sort((a, b) => b.count - a.count)[0];
-    const anchorL = rgbToHsl(anchor.r, anchor.g, anchor.b).l;
-    const used = /* @__PURE__ */ new Set();
-    for (const c of sorted) {
-      const { l } = rgbToHsl(c.r, c.g, c.b);
-      let step;
-      if (role === "neutral" && l > 0.985) step = 0;
-      else if (role === "neutral" && l < 0.02) step = 1e3;
-      else if (role === "neutral") step = neutralStep(l);
-      else if (sorted.length === 1) step = 500;
-      else step = chromaticStep(l, anchorL);
-      while (used.has(step)) step += 50;
-      used.add(step);
-      c.role = role;
-      c.step = step;
-      c.name = `${role}/${step}`;
-      if (c.a < 0.999) c.name += `-a${Math.round(c.a * 100)}`;
-      out.push(c);
-    }
-  }
-  function weightClass(style) {
-    const s = style.toLowerCase();
-    if (/black|heavy|extra ?bold|ultra/.test(s)) return { name: "black", css: 800 };
-    if (/bold/.test(s) && !/semi/.test(s)) return { name: "bold", css: 700 };
-    if (/semi|demi/.test(s)) return { name: "semibold", css: 600 };
-    if (/medium/.test(s)) return { name: "medium", css: 500 };
-    if (/light|thin|hairline/.test(s)) return { name: "light", css: 300 };
-    return { name: "regular", css: 400 };
-  }
-  function typeRole(size) {
-    if (size >= 40) return "display";
-    if (size >= 24) return "heading";
-    if (size >= 18) return "title";
-    if (size >= 14) return "body";
-    return "caption";
-  }
-  var SIZE_LABELS = {
-    1: ["md"],
-    2: ["lg", "sm"],
-    3: ["lg", "md", "sm"],
-    4: ["xl", "lg", "md", "sm"],
-    5: ["xl", "lg", "md", "sm", "xs"],
-    6: ["2xl", "xl", "lg", "md", "sm", "xs"]
-  };
-  function nameTypes(types) {
-    for (const t of types) {
-      t.role = typeRole(t.size);
-      const w = weightClass(t.style);
-      t.weight = w.name;
-      t.cssWeight = w.css;
-    }
-    const byRole = /* @__PURE__ */ new Map();
-    for (const t of types) {
-      if (!byRole.has(t.role)) byRole.set(t.role, []);
-      byRole.get(t.role).push(t);
-    }
-    const used = /* @__PURE__ */ new Set();
-    for (const [role, list] of byRole) {
-      const sizes = [...new Set(list.map((t) => t.size))].sort((a, b) => b - a);
-      const labels = SIZE_LABELS[sizes.length] || sizes.map((_, i) => String(sizes.length - i));
-      const labelOf = /* @__PURE__ */ new Map();
-      sizes.forEach((s, i) => labelOf.set(s, labels[i]));
-      for (const t of list) {
-        let name = `${role}/${labelOf.get(t.size)}/${t.weight}`;
-        let n = 2;
-        while (used.has(name)) name = `${role}/${labelOf.get(t.size)}/${t.weight}-${n++}`;
-        used.add(name);
-        t.name = name;
-      }
-    }
-    const roleOrder = ["display", "heading", "title", "body", "caption"];
-    types.sort((a, b) => {
-      const r = roleOrder.indexOf(a.role) - roleOrder.indexOf(b.role);
-      if (r !== 0) return r;
-      if (a.size !== b.size) return b.size - a.size;
-      return b.cssWeight - a.cssWeight;
-    });
-    return types;
-  }
-  function nameSpacing(list) {
-    list.sort((a, b) => a.value - b.value);
-    for (const s of list) s.name = `space/${s.value}`;
-    return list;
-  }
-  var RADIUS_LABELS = {
-    1: ["md"],
-    2: ["sm", "lg"],
-    3: ["sm", "md", "lg"],
-    4: ["sm", "md", "lg", "xl"],
-    5: ["xs", "sm", "md", "lg", "xl"],
-    6: ["xs", "sm", "md", "lg", "xl", "2xl"],
-    7: ["xs", "sm", "md", "lg", "xl", "2xl", "3xl"]
-  };
-  function nameRadii(list) {
-    list.sort((a, b) => a.value - b.value);
-    const full = list.filter((r) => r.value >= 999);
-    const rest = list.filter((r) => r.value < 999);
-    const labels = RADIUS_LABELS[rest.length] || rest.map((_, i) => String(i + 1));
-    rest.forEach((r, i) => r.name = `radius/${labels[i]}`);
-    full.forEach((r) => r.name = "radius/full");
-    return [...rest, ...full];
-  }
-  function nameEffects(list) {
-    const shadows = list.filter((e) => e.effects.some((x) => x.type === "DROP_SHADOW" || x.type === "INNER_SHADOW"));
-    const blurs = list.filter((e) => !shadows.includes(e));
-    const depth = (e) => e.effects.reduce((n, x) => n + ("radius" in x ? x.radius : 0) + ("offset" in x ? Math.abs(x.offset.y) : 0), 0);
-    shadows.sort((a, b) => depth(a) - depth(b));
-    blurs.sort((a, b) => depth(a) - depth(b));
-    shadows.forEach((e, i) => e.name = `elevation/${i + 1}`);
-    blurs.forEach((e, i) => e.name = `blur/${i + 1}`);
-    return [...shadows, ...blurs];
-  }
-  function sizeClass(h) {
-    if (h <= 32) return "sm";
-    if (h <= 44) return "md";
-    return "lg";
-  }
-  var DEFAULT_NAME = /^(vector|group|frame|rectangle|ellipse|line|polygon|star|boolean|union|subtract|intersect|exclude|path|shape|layer|image|mask)(\s*\d+)?(\s*copy(\s*\d+)?)?$/i;
-  function isDefaultName(name) {
-    return DEFAULT_NAME.test(name.trim());
-  }
-  function elementLabel(rec, prefix) {
-    const p = prefix;
-    const s = isDefaultName(rec.name) && rec.desc ? rec.desc : slug(rec.name);
-    const t = rec.text ? slug(rec.text, 24) : "";
-    const cat = rec.category;
-    switch (cat) {
-      case "screen":
-        return `${p}screen/${s}`;
-      case "section":
-        return `${p}section/${s}`;
-      case "nav":
-        return `${p}nav/${s}`;
-      case "card":
-        return `${p}card/${s}`;
-      case "button":
-        return `${p}button/${rec.fillRole || "default"}-${rec.sizeClass}${t ? "/" + t : ""}`;
-      case "input":
-        return `${p}input/${rec.sizeClass}${t ? "/" + t : ""}`;
-      case "badge":
-        return `${p}badge/${rec.fillRole || "default"}${t ? "/" + t : ""}`;
-      case "avatar":
-        return `${p}avatar/${rec.sizeClass}`;
-      case "image":
-        return `${p}image/${s}`;
-      case "icon":
-        return `${p}icon/${s}`;
-      case "divider":
-        return `${p}divider`;
-      case "list-item":
-        return `${p}list-item/${s}`;
-      case "checkbox":
-        return `${p}checkbox`;
-      case "toggle":
-        return `${p}toggle`;
-      case "text":
-        return `${p}text/${(rec.textRole || "body").replace(/\//g, "-")}`;
-      case "tagline":
-        return `${p}tagline/${t || s}`;
-      case "copy":
-        return `${p}copy/${t || s}`;
-      case "logo":
-        return `${p}logo/${t || s}`;
-      case "character":
-        return `${p}character/${s}`;
-      case "illustration":
-        return `${p}illustration/${s}`;
-      case "symbol":
-        return `${p}symbol/${s}`;
-      case "shape":
-        return `${p}shape/${rec.desc || s}`;
-      case "debris":
-        return `${p}debris/${rec.desc || s}`;
-      default:
-        return `${p}${s}`;
-    }
-  }
-
   // src/contact-sheet.ts
   var categories = /* @__PURE__ */ new Set(["screen", "section", "nav", "card", "button", "input", "badge", "avatar", "image", "icon", "divider", "list-item", "checkbox", "toggle", "text", "shape", "logo", "character", "illustration", "symbol", "tagline", "copy", "debris", "other"]);
   function resolvedCategory(value, fallback) {
     return categories.has(value) ? value : fallback;
+  }
+  function auditedAssetCategory(rec, node) {
+    if (rec.category !== "logo" && !hasCurrentLogoApproval(node)) return { category: rec.category };
+    const names = [node.name, node.getPluginData("dsf.originalName"), node.getPluginData("dsf.semanticName"), rec.name, rec.semanticName || "", rec.text || ""].join(" ").toLowerCase().replace(/[-_/]+/g, " ");
+    const ui = logoUiCategory(node);
+    if (ui) return { category: ui, reason: "UI structure or purpose" };
+    if (/\b(status\s*bar|pagination|page indicator|page control)\b/.test(names)) return { category: "nav", reason: "status/pagination role" };
+    if (/\b(continue (with|wphone)|sign (in|up)|log in)\b/.test(names) || /continue wphone#/.test(names)) return { category: "button", reason: "sign-in control" };
+    if (/\b(arrow (left|right|up|down)|chevron|wifi|wi fi|battery|signal strength|hamburger|search icon|settings icon|close icon)\b/.test(names)) return { category: "icon", reason: "utility icon role" };
+    return hasCurrentLogoApproval(node) ? { category: "logo" } : { category: "symbol", reason: "Unapproved logo candidate; inspect and approve before listing in Logos" };
   }
   function hasGeneratedAncestor(node) {
     let current = node;
@@ -724,10 +935,8 @@
     return f?.geometryReliable && f.geometrySignature ? JSON.stringify([rec.category, f.geometrySignature, f.variant, rec.w, rec.h]) : rec.id;
   }
   function sheetName(rec, prefix) {
-    if (rec.semanticName) return rec.semanticName;
-    const path = prefix && rec.name.startsWith(prefix) ? rec.name.slice(prefix.length) : rec.name;
-    const name = path.replace(new RegExp("^" + rec.category + "/"), "").replace(/-/g, " ");
-    if (!isDefaultName(name)) return path;
+    const name = establishedName(rec, prefix);
+    if (name) return name;
     if (rec.category === "debris") return `Possible debris \xB7 ${rec.desc || "empty or tiny vector"}`;
     if (["icon", "logo", "symbol", "illustration", "character", "other"].includes(rec.category)) {
       return `Needs identification \xB7 ${rec.desc || rec.category} \xB7 ${rec.id}`;
@@ -736,8 +945,10 @@
   }
   async function refreshIdentifications(inv) {
     const records = [];
+    const ordinary = new Set([...inv.elements, ...inv.icons, ...inv.shapes].map((r) => r.id));
+    const candidates = new Map((inv.characterCandidates || []).map((r) => [r.id, r]));
     const approved = new Map(inv.assetMap?.assets.filter((f) => f.status === "approved").flatMap((f) => f.variants.map((v) => [v.nodeId, f])) || []);
-    for (const rec of [...inv.elements, ...inv.icons, ...inv.shapes]) {
+    for (const rec of [...inv.elements, ...inv.icons, ...inv.shapes, ...[...candidates.values()].filter((r) => !ordinary.has(r.id))]) {
       const node = await figma.getNodeByIdAsync(rec.id);
       if (!node || node.removed || hasGeneratedAncestor(node)) continue;
       rec.name = node.name;
@@ -746,7 +957,8 @@
       const savedCategory = node.getPluginData(PD_CATEGORY);
       if (savedCategory !== "debris" || node.getPluginData("dsf.semanticName")) rec.category = resolvedCategory(savedCategory, rec.category);
       const semantic = node.getPluginData("dsf.semanticName");
-      if (semantic) rec.semanticName = semantic;
+      rec.semanticName = semantic || void 0;
+      rec.originalName = node.getPluginData("dsf.originalName") || void 0;
       try {
         const saved = JSON.parse(node.getPluginData("dsf.assetVariant"));
         const f = rec.identity;
@@ -761,141 +973,14 @@
         rec.category = family.kind;
         rec.semanticName = family.canonicalName;
       }
-      if (rec.category === "logo" && "width" in node) rec.category = logoUiCategory(node) || rec.category;
+      if ("width" in node) rec.category = auditedAssetCategory(rec, node).category;
+      if (candidates.has(rec.id) && (rec.category !== "character" || rec.artworkRole === "part")) continue;
       records.push(rec);
     }
-    inv.elements = records.filter((r) => r.category !== "icon" && r.category !== "shape");
+    const wholeCharacters = new Set(records.filter((r) => r.category === "character" && r.artworkRole !== "part").map((r) => r.id));
+    inv.elements = records.filter((r) => r.category !== "icon" && r.category !== "shape" && !(candidates.has(r.id) && r.characterAncestorIds?.some((id) => wholeCharacters.has(id))));
     inv.icons = records.filter((r) => r.category === "icon");
     inv.shapes = records.filter((r) => r.category === "shape");
-  }
-
-  // src/identity.ts
-  var q = (v) => Math.round(v * 1e4) / 1e4;
-  function identityHash(s) {
-    let a = 2166136261, b = 5381;
-    for (let i = 0; i < s.length; i++) {
-      a = Math.imul(a ^ s.charCodeAt(i), 16777619);
-      b = Math.imul(b, 33) ^ s.charCodeAt(i);
-    }
-    return (a >>> 0).toString(16).padStart(8, "0") + (b >>> 0).toString(16).padStart(8, "0");
-  }
-  function normalizeVisibleText(s) {
-    return s.normalize("NFKC").toLowerCase().replace(/[™®©]/g, "").replace(/[‐‑–—-]/g, " ").replace(/\s+/g, " ").trim();
-  }
-  var CTA = /^(learn more|read more|buy now|shop now|click here|sign up|log in|get started|submit|next|back|download|continue)$/;
-  function identityText(s) {
-    const t = normalizeVisibleText(s);
-    return t.length >= 2 && t.length <= 120 && !CTA.test(t) ? t : "";
-  }
-  function normalizeNetwork(v, w, h) {
-    if (!v.vertices.length || !v.segments.length || w <= 0 || h <= 0) throw new Error("empty geometry");
-    const ox = Math.min(...v.vertices.map((p) => p.x)), oy = Math.min(...v.vertices.map((p) => p.y));
-    return {
-      vertices: v.vertices.map((p) => [q((p.x - ox) / w), q((p.y - oy) / h), p.strokeCap || "", p.strokeJoin || "", q((p.cornerRadius || 0) / Math.max(w, h))]),
-      segments: v.segments.map((s) => [s.start, s.end, q((s.tangentStart?.x || 0) / w), q((s.tangentStart?.y || 0) / h), q((s.tangentEnd?.x || 0) / w), q((s.tangentEnd?.y || 0) / h)]),
-      regions: (v.regions || []).map((r) => [r.windingRule, r.loops])
-    };
-  }
-  function extractIdentity(node) {
-    let reliable = true, nodes = 0, geometryPoints = 0, vectors = 0, textCount = 0, filled = false, stroked = false, unknownPaint = false;
-    const texts = [], colors = /* @__PURE__ */ new Set(), warnings = [];
-    const walk = (n, depth) => {
-      if (++nodes > 1500 || depth > 24) {
-        reliable = false;
-        return "truncated";
-      }
-      if (n.visible === false || "opacity" in n && n.opacity === 0) return null;
-      const w = n.width, h = n.height;
-      if (!(w > 0 && h > 0)) reliable = false;
-      for (const key of ["fills", "strokes"]) {
-        if (!(key in n)) continue;
-        if (key === "strokes" && "strokeWeight" in n && n.strokeWeight === 0) continue;
-        const paints = n[key];
-        if (!Array.isArray(paints)) {
-          unknownPaint = true;
-          continue;
-        }
-        for (const paint of paints) {
-          if (paint.visible === false || paint.opacity === 0) continue;
-          if (key === "fills") filled = true;
-          else stroked = true;
-          if (paint.type === "SOLID") {
-            colors.add([paint.color.r, paint.color.g, paint.color.b].map((v) => Math.round(v * 255)).join(","));
-          } else {
-            unknownPaint = true;
-            if (paint.type === "IMAGE" || paint.type === "VIDEO") reliable = false;
-          }
-        }
-      }
-      const o = { type: ["GROUP", "FRAME", "COMPONENT", "INSTANCE"].includes(n.type) ? "CONTAINER" : n.type, aspect: q(w / (h || 1)), mask: "isMask" in n ? n.isMask : false };
-      if ("clipsContent" in n) o.clips = n.clipsContent;
-      if (n.type === "VECTOR") {
-        vectors++;
-        try {
-          const network = n.vectorNetwork;
-          geometryPoints += network.vertices.length + network.segments.length;
-          if (geometryPoints > 2e4) throw new Error("geometry budget");
-          o.network = normalizeNetwork(network, w, h);
-        } catch {
-          reliable = false;
-        }
-      } else if (n.type === "TEXT") {
-        textCount++;
-        texts.push(n.characters);
-        o.text = normalizeVisibleText(n.characters);
-        o.font = n.fontName;
-        o.fontSize = typeof n.fontSize === "number" ? q(n.fontSize / (h || 1)) : "mixed";
-        if (typeof n.fontName === "symbol" || typeof n.fontSize === "symbol") reliable = false;
-      } else if (["RECTANGLE", "ELLIPSE", "POLYGON", "STAR", "LINE"].includes(n.type)) {
-        const a = n;
-        o.corners = ["topLeftRadius", "topRightRadius", "bottomRightRadius", "bottomLeftRadius"].map((k) => q((a[k] || 0) / (Math.max(w, h) || 1)));
-        o.points = a.pointCount;
-        o.inner = a.innerRadius;
-        o.arc = a.arcData;
-      } else if (!("children" in n)) reliable = false;
-      if (n.type === "BOOLEAN_OPERATION") o.operation = n.booleanOperation;
-      if ("children" in n) {
-        const budget = Math.max(0, 1500 - nodes);
-        if (n.children.length > budget) reliable = false;
-        o.children = n.children.slice(0, budget).filter((k) => k.visible !== false && (!("opacity" in k) || k.opacity !== 0)).map((k) => {
-          const t = k.relativeTransform;
-          return { bounds: [q(k.width / (w || 1)), q(k.height / (h || 1))], transform: [q(t[0][0]), q(t[0][1]), q(t[0][2] / (w || 1)), q(t[1][0]), q(t[1][1]), q(t[1][2] / (h || 1))], geometry: walk(k, depth + 1) };
-        });
-      }
-      return o;
-    };
-    const geometry = walk(node, 0);
-    if (!vectors && !textCount) reliable = false;
-    if (!reliable) warnings.push("Geometry incomplete or non-distinctive; requires other evidence");
-    const variant = {};
-    if (!unknownPaint && colors.size) {
-      if (colors.size > 1) variant.color = "multi";
-      else {
-        const [r, g, b] = [...colors][0].split(",").map((v) => +v / 255);
-        const { h, s, l } = rgbToHsl(r, g, b);
-        variant.color = l < 0.08 ? "black" : l > 0.95 ? "white" : s < 0.12 ? "gray" : hueName(h);
-      }
-      if (!filled && stroked) variant.treatment = "outline";
-      else if (colors.size === 1 && variant.color !== "white") variant.treatment = "monochrome";
-    }
-    const aspect = node.width / (node.height || 1);
-    variant.orientation = aspect >= 1.8 ? "horizontal" : aspect <= 0.55 ? "vertical" : aspect >= 0.85 && aspect <= 1.18 ? "square" : void 0;
-    if (textCount && !vectors) variant.lockup = "wordmark";
-    else if (textCount && vectors) variant.lockup = textCount > 1 ? "tagline-lockup" : "mark-wordmark";
-    if (textCount && vectors && "layoutMode" in node && node.layoutMode === "VERTICAL" && "children" in node && node.children.length <= 4) variant.orientation = "stacked";
-    return { version: 1, geometrySignature: reliable ? "g1:" + identityHash(JSON.stringify(geometry)) : void 0, geometryReliable: reliable, visibleText: identityText(texts.join(" ")), variant, warnings };
-  }
-  async function componentRelationship(node) {
-    let main = node.type === "COMPONENT" ? node : null;
-    if (node.type === "INSTANCE") {
-      try {
-        main = await node.getMainComponentAsync();
-      } catch {
-      }
-    }
-    if (!main) return {};
-    const set = main.parent?.type === "COMPONENT_SET" ? main.parent : main;
-    return { family: set.key ? "component:" + set.key : void 0, mainComponentId: main.id };
   }
 
   // src/similarity.ts
@@ -1150,8 +1235,45 @@
     const n = await source();
     if (n.id !== fresh.nodeId) throw Error("Selection changed. Inspect again.");
     const features = shapeFeatures(n);
+    approveLogo(n, name);
+    n.setPluginData("dsf.category", "logo");
+    n.setPluginData("dsf.semanticName", name);
     n.setPluginData("dsf.logoComposition", JSON.stringify({ ...composition, snapshot: fresh.snapshot }));
     return { name, kind: "logo", what: "Human-reviewed logo composition: " + composition.arrangement, image: fresh.image, features, composition };
+  }
+
+  // src/character-discovery.ts
+  function characterGroupCandidate(node) {
+    if (!["GROUP", "FRAME", "COMPONENT", "INSTANCE", "BOOLEAN_OPERATION"].includes(node.type) || !("children" in node)) return false;
+    if (node.width < 12 || node.height < 12 || node.width / node.height < 0.2 || node.width / node.height > 5) return false;
+    if ("isMask" in node && node.isMask) return false;
+    let current = node;
+    while (current && current.type !== "PAGE" && current.type !== "DOCUMENT") {
+      if ("visible" in current && !current.visible || "opacity" in current && current.opacity === 0) return false;
+      current = current.parent;
+    }
+    let vectors = 0, texts = 0, visited = 0;
+    const stack = [{ node, depth: 0 }];
+    while (stack.length && visited++ < 160) {
+      const { node: n, depth } = stack.pop();
+      if (n.visible === false || "opacity" in n && n.opacity === 0) continue;
+      if (n.type === "TEXT") {
+        texts++;
+        continue;
+      }
+      if (["VECTOR", "BOOLEAN_OPERATION", "ELLIPSE", "RECTANGLE", "POLYGON", "STAR"].includes(n.type)) vectors++;
+      if ("children" in n && depth < 10) for (const child of n.children) stack.push({ node: child, depth: depth + 1 });
+    }
+    return vectors >= 4 && texts <= 2;
+  }
+  function sourceAncestors(node) {
+    const ids = [];
+    let parent = node.parent;
+    while (parent && parent.type !== "PAGE" && parent.type !== "DOCUMENT") {
+      ids.push(parent.id);
+      parent = parent.parent;
+    }
+    return ids;
   }
 
   // src/layout-meta.ts
@@ -1194,6 +1316,8 @@
     const radii = /* @__PURE__ */ new Map();
     const effects = /* @__PURE__ */ new Map();
     const artworkParts = [];
+    const characterCandidates = [];
+    let characterCandidatesDeferred = 0;
     const elements = [];
     const icons = [];
     const shapes = [];
@@ -1363,7 +1487,10 @@
       }
       let textRole = "";
       if (node.type === "TEXT") textRole = textRoleOf(node);
-      const cls = item.artworkOwner ? { category: "other", text: "", fillHex: null, strokeHex: null, fingerprint: "", desc: "" } : classify(node, item.ctx);
+      const nestedCandidate = !!item.artworkOwner && !["character", "logo"].includes(item.artworkCategory || "") && characterGroupCandidate(node) && artworkRole(node).artworkRole !== "part";
+      const keepCandidate = nestedCandidate && characterCandidates.length < 500;
+      if (nestedCandidate && !keepCandidate) characterCandidatesDeferred++;
+      const cls = item.artworkOwner ? { category: "illustration", text: "", fillHex: null, strokeHex: null, fingerprint: "", desc: "Nested vector group; review whether this is one whole character, a scene or a fragment." } : classify(node, item.ctx);
       const savedCategory = node.getPluginData("dsf.category");
       if (!item.artworkOwner && (savedCategory !== "debris" || node.getPluginData("dsf.semanticName"))) cls.category = resolvedCategory(savedCategory, cls.category);
       if (!item.artworkOwner && cls.category === "logo") cls.category = logoUiCategory(node) || cls.category;
@@ -1371,14 +1498,16 @@
       const boundary = !item.artworkOwner && artworkBoundary(node, cls.category);
       const artContainer = "children" in node && ["icon", "logo", "character", "illustration", "symbol"].includes(cls.category);
       if (item.artworkOwner) artworkParts.push({ nodeId: node.id, ownerId: item.artworkOwner, name: node.name, nodeType: node.type, layout: layoutMetadata(node) });
-      if (!item.artworkOwner && (!artContainer || boundary) && (cls.category !== "other" || node.type === "COMPONENT" || node.type === "INSTANCE" || node.type === "COMPONENT_SET")) {
+      if (keepCandidate || !item.artworkOwner && (!artContainer || boundary) && (cls.category !== "other" || node.type === "COMPONENT" || node.type === "INSTANCE" || node.type === "COMPONENT_SET")) {
         const rec = {
           id: node.id,
           nodeType: node.type,
+          characterAncestorIds: sourceAncestors(node),
           ...["icon", "logo", "character", "illustration", "symbol"].includes(cls.category) ? artworkRole(node) : {},
           assetName: readAssetName(node),
           category: cls.category,
           name: node.name,
+          originalName: node.getPluginData("dsf.originalName") || void 0,
           semanticName: node.getPluginData("dsf.semanticName") || void 0,
           text: cls.text.slice(0, 80),
           w: node.width,
@@ -1393,7 +1522,8 @@
           identity: extractIdentity(node),
           layout: layoutMetadata(node)
         };
-        if (cls.category === "icon") icons.push(rec);
+        if (keepCandidate) characterCandidates.push(rec);
+        else if (cls.category === "icon") icons.push(rec);
         else if (cls.category === "shape") {
           if (shapes.length < 4e3) shapes.push(rec);
         } else elements.push(rec);
@@ -1401,7 +1531,8 @@
       if ("children" in node) {
         for (let i = node.children.length - 1; i >= 0; i--) {
           const k = node.children[i];
-          stack.push({ node: k, ctx: { parentW: node.width, parentH: node.height, yInParent: k.y, topLevel: false }, inInstance: inInstance || node.type === "INSTANCE", page: item.page, artworkOwner: item.artworkOwner || (boundary ? node.id : void 0) });
+          const reviewedCharacter = keepCandidate && node.getPluginData("dsf.category") === "character" && artworkRole(node).artworkRole !== "part";
+          stack.push({ node: k, ctx: { parentW: node.width, parentH: node.height, yInParent: k.y, topLevel: false }, inInstance: inInstance || node.type === "INSTANCE", page: item.page, artworkOwner: item.artworkOwner || (boundary ? node.id : void 0), artworkCategory: reviewedCharacter ? "character" : item.artworkCategory || (boundary ? cls.category : void 0) });
         }
       }
     }
@@ -1421,6 +1552,8 @@
     for (const e of elements) if (e.category === "text" && e.textRole) e.textRole = typeName.get(e.textRole) || "body";
     const inv = {
       artworkParts,
+      characterCandidates,
+      characterCandidatesDeferred,
       scope,
       pages,
       pageIds,
@@ -1440,6 +1573,9 @@
     progress(100, "Scan complete");
     return inv;
   }
+
+  // package.json
+  var version = "1.6.9";
 
   // src/asset-review.ts
   function exportAssetMap(map) {
@@ -1591,6 +1727,32 @@ module.exports = ${JSON.stringify(tw, null, 2)};
     files["asset-identities.json"] = JSON.stringify({ schemaVersion: 1, assets: [...inv.elements, ...inv.icons, ...inv.shapes].filter((r) => r.assetName).map((r) => ({ nodeId: r.id, name: r.semanticName, kind: r.category, ...r.assetName })) }, null, 2);
     files["artwork-parts.json"] = JSON.stringify({ schemaVersion: 1, artwork: [...inv.elements, ...inv.icons, ...inv.shapes].filter((r) => r.artworkRole).map((r) => ({ nodeId: r.id, role: r.artworkRole, partOf: r.partOf })), parts: inv.artworkParts || [] }, null, 2);
     return files;
+  }
+
+  // src/artwork-preview.ts
+  function fitArtworkPreview(source2, clone, box, limit = 480) {
+    box.clipsContent = false;
+    const transform = source2.absoluteTransform;
+    const current = clone.absoluteTransform;
+    if (transform && (!current || [0, 1].some((row) => [0, 1].some((col) => Math.abs(transform[row][col] - current[row][col]) > 1e-6))))
+      clone.relativeTransform = [[transform[0][0], transform[0][1], clone.x], [transform[1][0], transform[1][1], clone.y]];
+    let bounds = "absoluteRenderBounds" in clone && clone.absoluteRenderBounds || clone.absoluteBoundingBox;
+    const w = Math.max(1, bounds?.width || clone.width), h = Math.max(1, bounds?.height || clone.height);
+    const scale = Math.min(1, limit / w, limit / h);
+    if (scale < 1 && "rescale" in clone) clone.rescale(scale);
+    bounds = "absoluteRenderBounds" in clone && clone.absoluteRenderBounds || clone.absoluteBoundingBox;
+    const width = bounds?.width || clone.width, height = bounds?.height || clone.height;
+    box.resizeWithoutConstraints(Math.max(24, Math.ceil(width)), Math.max(24, Math.ceil(height)));
+    box.clipsContent = false;
+    bounds = "absoluteRenderBounds" in clone && clone.absoluteRenderBounds || clone.absoluteBoundingBox;
+    const frame = box.absoluteBoundingBox;
+    if (bounds && frame) {
+      clone.x += frame.x + (box.width - bounds.width) / 2 - bounds.x;
+      clone.y += frame.y + (box.height - bounds.height) / 2 - bounds.y;
+    } else {
+      clone.x = (box.width - clone.width) / 2;
+      clone.y = (box.height - clone.height) / 2;
+    }
   }
 
   // src/build.ts
@@ -2218,24 +2380,33 @@ module.exports = ${JSON.stringify(tw, null, 2)};
     { key: "debris", title: "Possible vector debris", cats: ["debris"], cap: 300, kind: "vector" }
   ];
   async function buildAssets(inv, opts, notes) {
+    const builtAt = (/* @__PURE__ */ new Date()).toISOString();
+    const buildLabel = `Updated ${builtAt.slice(0, 10)} ${builtAt.slice(11, 19)} UTC \xB7 v${version}`;
     const page = await getOrCreatePage("DS \xB7 Assets");
     const cursor = { y: 0 };
     let count = 0;
-    const pool = [...inv.elements, ...inv.icons, ...inv.shapes].filter((r) => !r.inInstance || r.nodeType === "INSTANCE");
+    const pool = [...inv.elements, ...inv.icons, ...inv.shapes].filter((r) => !r.inInstance || r.nodeType === "INSTANCE" || r.category === "character" && r.artworkRole !== "part" && !!r.semanticName);
     const resolved = [];
     for (let i = 0; i < pool.length; i++) {
       if (cancelled) throw new Error("cancelled");
       const rec = pool[i];
       const node = await nodeById(rec.id);
       if (!node) continue;
-      resolved.push({ rec, node, cat: rec.category });
+      const audit = auditedAssetCategory(rec, node);
+      if (audit.reason) {
+        notes.push(`Logo audit: moved ${rec.semanticName || rec.name} (${rec.id}) to ${audit.category}: ${audit.reason}.`);
+        rec.category = audit.category;
+      }
+      resolved.push({ rec, node, cat: audit.category });
       if (i % 300 === 0) {
         progress(80 + i / pool.length * 6, `Sorting assets\u2026 ${i}/${pool.length}`);
         await tick();
       }
     }
-    const intro = await mkSection("Assets", `Every logo, character, illustration, symbol, icon, button, tagline, copy block and vector in the scanned scope, grouped by class and named. Possible debris is shown for review; source artwork is retained. Unrecognized artwork is marked Needs identification.`, page, cursor);
-    intro.section.name = "Assets \xB7 index";
+    const intro = await mkSection("Assets", `Build: approved-logos-4. Final logo output checks applied. Every logo, character, illustration, symbol, icon, button, tagline, copy block and vector in the scanned scope, grouped by class and named. Possible debris is shown for review; source artwork is retained. Unrecognized artwork is marked Needs identification.`, page, cursor);
+    intro.section.name = `Assets \xB7 index \xB7 ${buildLabel}`;
+    intro.section.setPluginData("dsf.builtAt", builtAt);
+    intro.section.setPluginData("dsf.buildVersion", version);
     const idx = mkFrame("index", { dir: "H", gap: 24, wrap: true, w: 1160 });
     for (const sec of ASSET_SECTIONS) {
       const n = resolved.filter((r) => sec.key === "parts" ? r.rec.artworkRole === "part" : r.rec.artworkRole !== "part" && sec.cats.includes(r.cat)).length;
@@ -2259,8 +2430,11 @@ module.exports = ${JSON.stringify(tw, null, 2)};
       const distinct = [...seen.values()].sort((a, b) => a.node.name.localeCompare(b.node.name)).slice(0, sec.cap);
       progress(86, `Assets \xB7 ${sec.title}\u2026`);
       await tick();
-      const { section, body } = await mkSection(sec.title, `${items.length} found \xB7 ${distinct.length} distinct${items.length > sec.cap ? ` \xB7 showing ${sec.cap}` : ""}`, page, cursor);
-      section.name = `Assets \xB7 ${sec.title}`;
+      const { section, body } = await mkSection(sec.title, `${items.length} found \xB7 ${distinct.length} distinct${items.length > sec.cap ? ` \xB7 showing ${sec.cap}` : ""}
+${buildLabel}`, page, cursor);
+      section.name = `Assets \xB7 ${sec.title} \xB7 ${buildLabel}`;
+      section.setPluginData("dsf.builtAt", builtAt);
+      section.setPluginData("dsf.buildVersion", version);
       if (sec.kind === "list") {
         const col = mkFrame("list", { dir: "V", gap: 4 });
         for (const d of distinct) {
@@ -2305,15 +2479,7 @@ module.exports = ${JSON.stringify(tw, null, 2)};
             cell.appendChild(box);
             box.appendChild(clone);
             unlockSizing(clone);
-            if (w > 480 || h > 480) {
-              const sc = Math.min(480 / w, 480 / h);
-              try {
-                clone.rescale(sc);
-              } catch {
-              }
-            }
-            clone.x = (box.width - clone.width) / 2;
-            clone.y = (box.height - clone.height) / 2;
+            fitArtworkPreview(d.node, clone, box);
             if (["logos", "characters", "illustrations", "symbols", "icons", "vectors"].includes(sec.key)) {
               const comp = figma.createComponentFromNode(box);
               comp.name = `${opts.prefix}${d.cat}/${slug(sheetName(d.rec, opts.prefix), 80)}`;
@@ -2486,15 +2652,16 @@ module.exports = ${JSON.stringify(tw, null, 2)};
     } catch {
     }
   }
-  function pickDistinct(list, limit) {
+  function pickDistinct(list, nested = false) {
     const groups = /* @__PURE__ */ new Map();
     for (const r of list) {
-      if (r.inInstance && r.nodeType !== "INSTANCE") continue;
-      const g = groups.get(appearanceKey(r));
+      if (!nested && r.inInstance && r.nodeType !== "INSTANCE") continue;
+      const key = JSON.stringify([appearanceKey(r), establishedName(r) || "", nested ? r.id : ""]);
+      const g = groups.get(key);
       if (g) g.ids.push(r.id);
-      else groups.set(appearanceKey(r), { rec: r, ids: [r.id] });
+      else groups.set(key, { rec: r, ids: [r.id] });
     }
-    return [...groups.values()].slice(0, limit);
+    return [...groups.values()];
   }
   async function exportPng(node, target) {
     try {
@@ -2505,30 +2672,52 @@ module.exports = ${JSON.stringify(tw, null, 2)};
       return null;
     }
   }
-  async function prepareAiItems(inv, targets, maxItems) {
+  async function prepareAiItems(inv, targets, maxItems, charactersOnly = false) {
+    await refreshIdentifications(inv);
     const plan = [];
-    const cap = (n) => Math.max(0, Math.min(n, maxItems - plan.length));
     if (targets.icons) {
-      for (const g of pickDistinct(inv.icons, cap(400))) plan.push({ rec: g.rec, ids: g.ids, category: "icon", name: g.rec.name, text: "", page: g.rec.page, size: 256, nodeId: g.rec.id });
-      for (const g of pickDistinct(inv.elements.filter((e) => e.category === "symbol"), cap(200))) plan.push({ rec: g.rec, ids: g.ids, category: "symbol", name: g.rec.name, text: "", page: g.rec.page, size: 320, nodeId: g.rec.id });
+      for (const g of pickDistinct(inv.icons)) plan.push({ rec: g.rec, ids: g.ids, category: "icon", name: g.rec.name, text: "", page: g.rec.page, size: 256, nodeId: g.rec.id });
+      for (const g of pickDistinct(inv.elements.filter((e) => e.category === "symbol"))) plan.push({ rec: g.rec, ids: g.ids, category: "symbol", name: g.rec.name, text: "", page: g.rec.page, size: 320, nodeId: g.rec.id });
     }
-    if (targets.art) for (const g of pickDistinct(inv.elements.filter((e) => e.category === "logo" || e.category === "character" || e.category === "illustration"), cap(200))) plan.push({ rec: g.rec, ids: g.ids, category: g.rec.category, name: g.rec.name, text: g.rec.text, page: g.rec.page, size: 384, nodeId: g.rec.id });
-    if (targets.text) for (const g of pickDistinct(inv.elements.filter((e) => e.category === "tagline" || e.category === "copy"), cap(200))) plan.push({ rec: g.rec, ids: g.ids, category: g.rec.category, name: g.rec.name, text: g.rec.text, page: g.rec.page, size: 320, nodeId: g.rec.id });
-    if (targets.images) for (const g of pickDistinct(inv.elements.filter((e) => e.category === "image" || e.category === "avatar"), cap(200))) plan.push({ rec: g.rec, ids: g.ids, category: g.rec.category, name: g.rec.name, text: "", page: g.rec.page, size: 384, nodeId: g.rec.id });
-    if (targets.screens) for (const g of pickDistinct(inv.elements.filter((e) => e.category === "screen" || e.category === "section" || e.category === "nav"), cap(200))) plan.push({ rec: g.rec, ids: g.ids, category: g.rec.category, name: g.rec.name, text: g.rec.text, page: g.rec.page, size: 384, nodeId: g.rec.id });
-    if (targets.cards) for (const g of pickDistinct(inv.elements.filter((e) => e.category === "card" || e.category === "list-item"), cap(200))) plan.push({ rec: g.rec, ids: g.ids, category: g.rec.category, name: g.rec.name, text: g.rec.text, page: g.rec.page, size: 384, nodeId: g.rec.id });
+    if (targets.art) for (const g of pickDistinct(inv.elements.filter((e) => e.category === "logo" || e.category === "character" || e.category === "illustration"))) plan.push({ rec: g.rec, ids: g.ids, category: g.rec.category, name: g.rec.name, text: g.rec.text, page: g.rec.page, size: 384, nodeId: g.rec.id });
+    if (targets.text) for (const g of pickDistinct(inv.elements.filter((e) => e.category === "tagline" || e.category === "copy"))) plan.push({ rec: g.rec, ids: g.ids, category: g.rec.category, name: g.rec.name, text: g.rec.text, page: g.rec.page, size: 320, nodeId: g.rec.id });
+    if (targets.images) for (const g of pickDistinct(inv.elements.filter((e) => e.category === "image" || e.category === "avatar"))) plan.push({ rec: g.rec, ids: g.ids, category: g.rec.category, name: g.rec.name, text: "", page: g.rec.page, size: 384, nodeId: g.rec.id });
+    if (targets.screens) for (const g of pickDistinct(inv.elements.filter((e) => e.category === "screen" || e.category === "section" || e.category === "nav"))) plan.push({ rec: g.rec, ids: g.ids, category: g.rec.category, name: g.rec.name, text: g.rec.text, page: g.rec.page, size: 384, nodeId: g.rec.id });
+    if (targets.cards) for (const g of pickDistinct(inv.elements.filter((e) => e.category === "card" || e.category === "list-item"))) plan.push({ rec: g.rec, ids: g.ids, category: g.rec.category, name: g.rec.name, text: g.rec.text, page: g.rec.page, size: 384, nodeId: g.rec.id });
     if (targets.components) {
-      for (const g of pickDistinct(inv.elements.filter((e) => ["button", "input", "badge", "checkbox", "toggle", "other"].includes(e.category)), cap(200))) plan.push({ rec: g.rec, ids: g.ids, category: g.rec.category, name: g.rec.name, text: g.rec.text, page: g.rec.page, size: 384, nodeId: g.rec.id });
-      for (const c of inv.components.filter((x) => !x.remote).slice(0, cap(200))) {
+      for (const g of pickDistinct(inv.elements.filter((e) => ["button", "input", "badge", "checkbox", "toggle", "other"].includes(e.category)))) plan.push({ rec: g.rec, ids: g.ids, category: g.rec.category, name: g.rec.name, text: g.rec.text, page: g.rec.page, size: 384, nodeId: g.rec.id });
+      for (const c of inv.components.filter((x) => !x.remote)) {
         if (!plan.some((p) => p.ids.includes(c.id))) plan.push({ rec: null, ids: [c.id], category: "component", name: c.name, text: "", page: "", size: 384, nodeId: c.id });
       }
     }
-    if (targets.shapes) for (const g of pickDistinct(inv.shapes, cap(200))) plan.push({ rec: g.rec, ids: g.ids, category: "shape", name: g.rec.name, text: "", page: g.rec.page, size: 256, nodeId: g.rec.id });
+    if (targets.shapes) for (const g of pickDistinct(inv.shapes)) plan.push({ rec: g.rec, ids: g.ids, category: "shape", name: g.rec.name, text: "", page: g.rec.page, size: 256, nodeId: g.rec.id });
+    if (charactersOnly) {
+      plan.length = 0;
+      const records = [...new Map([...inv.elements, ...inv.icons, ...inv.characterCandidates || []].map((r) => [r.id, r])).values()];
+      for (const g of pickDistinct(records.filter((r) => ["character", "illustration", "symbol", "icon"].includes(r.category) && r.artworkRole !== "part"), true))
+        plan.push({ rec: g.rec, ids: g.ids, category: g.rec.category, name: g.rec.name, text: g.rec.text, page: g.rec.page, size: 384, nodeId: g.rec.id });
+      maxItems = Math.min(maxItems, 120);
+    }
+    const named = (p) => establishedName(p.rec || { name: p.name, category: "other" });
+    const trustedCharacter = (p) => p.category === "character" && p.rec?.artworkRole !== "part" && !!named(p);
+    const unknown = plan.filter((p) => charactersOnly ? !trustedCharacter(p) : !named(p));
+    const art = (p) => ["logo", "character", "illustration"].includes(p.category);
+    unknown.sort((a, b) => Number(art(b)) - Number(art(a)));
+    const referencePlan = charactersOnly ? plan.filter(trustedCharacter) : pickDistinct([...inv.elements, ...inv.icons].filter(
+      (r) => r.artworkRole !== "part" && ["logo", "character", "illustration", "symbol", "icon"].includes(r.category) && establishedName(r)
+    )).map((g) => ({ rec: g.rec, ids: g.ids, category: g.rec.category, name: g.rec.name, text: g.rec.text, page: g.rec.page, size: 384, nodeId: g.rec.id }));
+    const references = referencePlan.sort(
+      (a, b) => Number(b.category === "character") - Number(a.category === "character") || Number(art(b)) - Number(art(a))
+    ).slice(0, 32);
+    const selected = [...references, ...unknown.slice(0, maxItems)];
+    const deferred = Math.max(0, unknown.length - maxItems);
+    const preserved = plan.length - unknown.length;
+    let exportFailures = 0;
     let chunk = [];
     let sent = 0;
-    for (let i = 0; i < plan.length; i++) {
+    for (let i = 0; i < selected.length; i++) {
       if (cancelled) throw new Error("cancelled");
-      const p = plan[i];
+      const p = selected[i];
       let node = null;
       try {
         const n = await figma.getNodeByIdAsync(p.nodeId);
@@ -2536,24 +2725,29 @@ module.exports = ${JSON.stringify(tw, null, 2)};
       } catch {
         node = null;
       }
-      if (!node) continue;
+      if (!node) {
+        exportFailures++;
+        continue;
+      }
       const exportNode = node.type === "COMPONENT_SET" ? node.defaultVariant : node;
       const png = await exportPng(exportNode, p.size);
-      if (!png) continue;
-      const semantic = node.getPluginData("dsf.semanticName");
-      const existing = semantic || node.name.split("/").pop() || "";
-      const meaningful = existing && !/^(vector|group|frame|path|shape|illustration|symbol|icon)([ -]*\d+)?$/i.test(existing) && !/(piece-\d|\d+x\d+|needs.identification)/i.test(existing);
-      const referenceName = meaningful && ["character", "illustration", "logo", "symbol", "icon"].includes(p.category) ? existing : void 0;
-      chunk.push({ assetName: readAssetName(node), referenceName, features: shapeFeatures(exportNode), key: p.rec ? appearanceKey(p.rec) : p.nodeId, ids: p.ids, category: p.category, name: p.name, desc: p.rec ? p.rec.desc : "", text: p.text, w: Math.round(node.width), h: Math.round(node.height), page: p.page, png });
+      if (!png) {
+        exportFailures++;
+        continue;
+      }
+      const preservedName = named(p);
+      const referenceName = preservedName && (!charactersOnly || trustedCharacter(p)) && ["character", "illustration", "logo", "symbol", "icon"].includes(p.category) ? preservedName : void 0;
+      const desc = (p.rec?.desc || "") + (charactersOnly ? " Character search: classify the entire isolated group. One complete figure is character; multiple figures/scenery are illustration; detached body/wing/eye parts are symbol. Use visible color and pose for unnamed characters." : "");
+      chunk.push({ assetName: readAssetName(node), existingAssetName: charactersOnly ? readAssetName(node) : void 0, artworkRole: artworkRole(node).artworkRole, characterSearch: charactersOnly, existingName: charactersOnly ? preservedName : void 0, characterAncestorIds: p.rec?.characterAncestorIds, referenceName, features: shapeFeatures(exportNode), key: (charactersOnly ? "character-v1:" : "") + (p.rec ? appearanceKey(p.rec) : p.nodeId), ids: p.ids, category: p.category, name: p.name, desc, text: p.text, w: Math.round(node.width), h: Math.round(node.height), page: p.page, png });
       sent++;
-      if (chunk.length >= 6 || i === plan.length - 1) {
-        post({ type: "ai_items", items: chunk, sent, total: plan.length });
+      if (chunk.length >= 6 || i === selected.length - 1) {
+        post({ type: "ai_items", items: chunk, sent, total: selected.length });
         chunk = [];
         await tick();
       }
     }
-    if (chunk.length) post({ type: "ai_items", items: chunk, sent, total: plan.length });
-    post({ type: "ai_items", items: [], sent, total: plan.length, done: true });
+    if (chunk.length) post({ type: "ai_items", items: chunk, sent, total: selected.length });
+    post({ type: "ai_items", items: [], sent, total: selected.length, done: true, deferred: deferred + (charactersOnly ? inv.characterCandidatesDeferred || 0 : 0), preserved, exportFailures, charactersOnly, nestedCandidates: inv.characterCandidates?.length || 0 });
     return sent;
   }
   var PATH_FOR = {
@@ -2845,6 +3039,22 @@ module.exports = ${JSON.stringify(tw, null, 2)};
         if (inventory) post({ type: "scanned", summary: summarize(inventory, msg.prefix || "ds/") });
         return;
       }
+      if (msg.type === "assets_rebuild") {
+        if (busy) return;
+        busy = true;
+        setCancelled(false);
+        try {
+          post({ type: "progress", pct: 1, msg: "Rescanning original artwork across the document\u2026" });
+          inventory = await scan("document", msg.baseGrid === 8 ? 8 : 4);
+          post({ type: "scanned", continuing: true, summary: summarize(inventory, msg.prefix || "ds/") });
+          const result = await build(inventory, { prefix: msg.prefix || "ds/", baseGrid: msg.baseGrid === 8 ? 8 : 4, labels: false, rename: false, labelText: false, styles: false, variables: false, foundations: false, components: false, icons: false, assets: true, tidy: false });
+          post({ type: "built", result });
+          figma.notify("Assets rebuilt from saved names and current logo approvals.");
+        } finally {
+          busy = false;
+        }
+        return;
+      }
       if (msg.type === "build") {
         if (busy) return;
         if (!inventory) {
@@ -2897,13 +3107,19 @@ module.exports = ${JSON.stringify(tw, null, 2)};
       }
       if (msg.type === "ai_prepare") {
         if (busy) return;
-        if (!inventory) {
+        if (!inventory && !msg.rescanDocument) {
           post({ type: "error", msg: "Scan the file first." });
           return;
         }
         busy = true;
         setCancelled(false);
-        await prepareAiItems(inventory, msg.targets, msg.maxItems || 300);
+        if (msg.rescanDocument) {
+          post({ type: "progress", pct: 1, msg: msg.charactersOnly ? "Scanning original artwork and nested character groups\u2026" : "Rescanning original artwork for the full design system\u2026" });
+          invalidateAssets();
+          inventory = await scan(msg.charactersOnly && msg.characterScope === "selection" ? "selection" : "document", msg.baseGrid === 8 ? 8 : 4);
+          post({ type: "scanned", newScan: true, continuing: true, summary: summarize(inventory, msg.prefix || "ds/") });
+        }
+        await prepareAiItems(inventory, msg.targets, Math.max(1, Math.min(2e3, msg.maxItems || 300)), !!msg.charactersOnly);
         busy = false;
         return;
       }

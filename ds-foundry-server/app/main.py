@@ -7,24 +7,25 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from .glossary import Cache, Glossary, Refs
 from .graph import run_naming
-from .providers import DEFAULT_MODELS, configured_providers, get_chat_model, get_critic_model
+from .providers import DEFAULT_MODELS, CRITIC_MODELS, DEFAULT_PROVIDER, configured_providers, get_chat_model, get_critic_model
+from .request_errors import ReportedModel, error_response
 from .schemas import GlossaryEntry, NameRequest, NameResponse
 
 from .asset_schemas import ResolveRequest, ApprovalRequest, AssetMap
 from .asset_store import AssetStore
 from .assets import resolve
 
-VERSION = "0.3.0"
+VERSION = "0.3.2"
 
 app = FastAPI(title="DS Foundry naming service", version=VERSION)
 
 # The Figma plugin panel runs in a sandboxed iframe whose origin is "null", so the wildcard is required.
-app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"], allow_headers=["*"])
+app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"], allow_headers=["*"], expose_headers=["Retry-After"])
 
 
 @app.get("/health")
 def health():
-    return {"ok": True, "version": VERSION, "providers": configured_providers(), "defaults": DEFAULT_MODELS}
+    return {"ok": True, "version": VERSION, "default_provider": DEFAULT_PROVIDER, "providers": configured_providers(), "defaults": DEFAULT_MODELS}
 
 
 @app.post("/name", response_model=NameResponse)
@@ -38,20 +39,24 @@ def name(req: NameRequest):
         namer = get_chat_model(req.provider, req.model, key)
         critic = get_critic_model(req.provider, req.model, key) if req.critic else None
     except Exception as e:
-        raise HTTPException(400, f"Could not create model: {e}")
-    glossary = Glossary(req.project)
-    cache = Cache(req.project)
-    refs = Refs(req.project)
-    excluded=set(req.excluded_reference_names)
-    if excluded:
-        original_all=refs.all
-        refs.all=lambda: [r for r in original_all() if r['name'] not in excluded]
-        req.references=[r for r in req.references if r.name not in excluded]
-        req.use_cache=False
+        return error_response(e, phase='model setup', secrets=(key,), default_status=400)
+    completed = [0]
+    namer = ReportedModel(namer, req.provider, req.model or DEFAULT_MODELS[req.provider], 'naming', completed)
+    if critic is not None:
+        critic = ReportedModel(critic, req.provider, CRITIC_MODELS.get(req.provider) or req.model or DEFAULT_MODELS[req.provider], 'critic', completed)
     try:
+        glossary = Glossary(req.project)
+        cache = Cache(req.project)
+        refs = Refs(req.project)
+        excluded=set(req.excluded_reference_names)
+        if excluded:
+            original_all=refs.all
+            refs.all=lambda: [r for r in original_all() if r['name'] not in excluded]
+            req.references=[r for r in req.references if r.name not in excluded]
+            req.use_cache=False
         results, usage = run_naming(req.items, namer, critic, glossary, cache, req.critic, req.learn, req.use_cache, refs, req.references)
     except Exception as e:
-        raise HTTPException(502, f"Naming failed: {e}")
+        return error_response(e, secrets=(key,))
     return NameResponse(results=results, usage=usage)
 
 

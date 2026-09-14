@@ -1,4 +1,6 @@
 import {rejectionKey,rejectedPair} from '../src/rejected-matches';
+import {characterPart} from '../src/character-parts';
+window.DSFCharacters={isPart:characterPart};
 window.DSFRejections={key:rejectionKey,pair:rejectedPair};
 import {normalizeAssetName,assetName,APPEARANCE_FIELDS} from '../src/asset-names';
 window.DSFAssetNames={normalizeAssetName,assetName,fields:APPEARANCE_FIELDS};
@@ -22,15 +24,15 @@ async function canonicalPost(url,body) {
   const signal=controller.signal, timeout=setTimeout(()=>controller?.abort(),120000);
   try {
     const r=await fetch(url,{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify(body),signal});
-    if(!r.ok){let detail='';try{detail=JSON.stringify((await r.json()).detail);}catch{}throw new Error(`Server ${r.status}: ${detail}`);}
+    if(!r.ok)throw await readRequestError(r,url);
     return await r.json();
   } finally {clearTimeout(timeout);controller=null;}
 }
 $('#cancel').addEventListener('click',()=>{
   if(!resolving)return;
-  generation++;controller?.abort();resolving=false;$('#assetResolve').disabled=false;setBusy(false);message('Canonical resolution stopped. No metadata applied.');
+  generation++;controller?.abort();resolving=false;$('#assetResolve').disabled=false;finishOperation('stopped','Canonical resolution stopped. No metadata applied.',6);message('Canonical resolution stopped. No metadata applied.');
 });
-const message=(s)=>{$('#assetStatus').textContent=s;};
+const message=(s)=>{$('#assetStatus').textContent=s;if(activeOperation?.step===6)status(s);};
 function render() {
   $('#assetApply').disabled=!map || !map.assets.some(f=>f.status==='approved' && f.variants.length);
   $('#assetExport').disabled=!map;
@@ -102,7 +104,7 @@ function captureContext() {
   const useModel=$('#assetModel').checked;
   const raw=modelId()==='__custom'?$('#customModel').value.trim():modelId();
   const [up,upModel]=provider()==='proxy'?raw.split(':'):[provider(),raw];
-  return {project:$('#assetProject').value.trim()||'default',server:$('#assetServer').value.trim().replace(/\/+$/,''),useModel,provider:up||'anthropic',model:upModel||null,api_key:provider()==='proxy'?null:$('#apiKey').value.trim()||null,maxModelCalls:8};
+  return {project:$('#assetProject').value.trim()||'default',server:$('#assetServer').value.trim().replace(/\/+$/,''),useModel,provider:up||'gemini',model:upModel||null,api_key:provider()==='proxy'?null:$('#apiKey').value.trim()||null,maxModelCalls:8};
 }
 $('#assetResolve').onclick=()=>{
   if(resolving||aiBusy||externalBusy)return;
@@ -110,24 +112,24 @@ $('#assetResolve').onclick=()=>{
   if(!/^https?:\/\//.test(context.server)){message('Enter a valid server URL');return;}
   generation++;resolving=true;map=null;pendingSave=null;rejected=[];page=0;render();
   $('#assetSave').hidden=true;$('#assetResolve').disabled=true;
-  setBusy(true,'Extracting canonical features…');
+  showStep(6);setBusy(true,'Extracting normalized geometry and appearance features…',6);
   const semantic=aiItems.filter(it=>it.suggested).map(it=>({ids:it.ids,name:it.suggested,kind:it.kind==='abstract'?it.category:(it.kind||it.category),description:it.what||''}));
   send({type:'assets_prepare',project:context.project,semantic});
 };
 $('#assetApply').onclick=()=>{
   if(!map||resolving||externalBusy)return;
-  setBusy(true,'Applying approved canonical metadata…');
+  setBusy(true,'Applying approved canonical metadata…',6);
   send({type:'assets_apply',map,project:context.project});
 };
 $('#assetExport').onclick=()=>{if(map)download('asset-map.json',exportAssetMap(map),'application/json');};
 async function saveReferences() {
   if(!pendingSave)return;
-  const request=pendingSave;
+  const request=pendingSave;setBusy(true,'Saving approved families to the project library…',6);
   try{
     await postJson(`${request.server}/assets/approve/${encodeURIComponent(request.project)}`,{},request.body,0);
     if(pendingSave!==request)return;
-    pendingSave=null;$('#assetSave').hidden=true;message(`Applied ${request.count} nodes and saved approved project references.`);
-  }catch(e){$('#assetSave').hidden=false;message(`Node metadata applied; project references were not saved: ${e.message}. Use Retry saving references.`);}
+    pendingSave=null;$('#assetSave').hidden=true;finishOperation('saved',`Applied ${request.count} nodes and saved approved project references.`,6);message(`Applied ${request.count} nodes and saved approved project references.`);
+  }catch(e){$('#assetSave').hidden=false;finishOperation('partial',`Node metadata applied; project references were not saved: ${e.message}. Use Retry saving references.`,6);message(`Node metadata applied; project references were not saved: ${e.message}. Use Retry saving references.`);}
 }
 $('#assetSave').onclick=saveReferences;
 window.addEventListener('message',async e=>{
@@ -151,10 +153,10 @@ window.addEventListener('message',async e=>{
       if(epoch!==generation)return;
       map=result;map.warnings.push(...m.warnings);render();message(`${map.assets.filter(f=>f.variants.length).length} families · ${map.calls} model calls. ${map.warnings.join(' ')} Review and confirm before applying.`);
     }catch(e){message(e.message);}
-    finally{if(epoch===generation){resolving=false;$('#assetResolve').disabled=false;setBusy(false,map?'Canonical resolution ready for review.':'Canonical resolution finished; see status above.');}}
+    finally{if(epoch===generation){resolving=false;$('#assetResolve').disabled=false;finishOperation(map?'review':'error',$('#assetStatus').textContent,6);}}
   }
   if(m.type==='assets_applied'){
-    map=m.map;setBusy(false,`Applied canonical metadata to ${m.count} nodes.`);render();
+    map=m.map;status(`Applied canonical metadata to ${m.count} nodes. Saving project references…`);render();
     pendingSave={server:context.server,project:m.project,count:m.count,body:{documentId:map.documentId,families:map.assets.filter(f=>f.status==='approved'&&f.variants.length),rejected}};
     await saveReferences();
   }

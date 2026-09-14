@@ -67,8 +67,10 @@ export interface ElementRec {
   assetName?: import('./asset-names').AssetName | null;
   artworkRole?: 'whole' | 'part';
   partOf?: string;
+  characterAncestorIds?: string[];
   nodeType?: string;
   semanticName?: string;
+  originalName?: string; // saved before generated layer labels were applied
   name: string;         // original name
   text: string;         // primary text content (if any)
   w: number;
@@ -89,6 +91,8 @@ export interface ComponentRef { id: string; name: string; remote: boolean; count
 export interface Inventory {
   scope: Scope;
   artworkParts?: {nodeId:string;ownerId:string;name:string;nodeType:string;layout?:import('./asset-types').LayoutMetadata}[];
+  characterCandidates?: ElementRec[]; // Nested groups stay out of sheets until approved as whole characters.
+  characterCandidatesDeferred?: number;
   assetMap?: import('./asset-types').AssetMap;
   pages: string[];
   pageIds: string[];

@@ -1,5 +1,6 @@
+import {version as PLUGIN_VERSION} from '../package.json';
 import {linkSheetCell} from './sheet-identify';
-import { refreshIdentifications, appearanceKey, sheetName } from './contact-sheet';
+import { refreshIdentifications, appearanceKey, sheetName, auditedAssetCategory } from './contact-sheet';
 import { Inventory, BuildOptions, BuildResult, ElementRec, ColorToken, Category } from './types';
 import { elementLabel } from './naming';
 import { PD_ORIGINAL, PD_CATEGORY, PD_GENERATED, progress, tick, cancelled, slug, rgbaCss, round } from './util';
@@ -582,10 +583,12 @@ function stripPrefix(name: string, prefix: string): string {
 }
 
 export async function buildAssets(inv: Inventory, opts: BuildOptions, notes: string[]): Promise<{ page: PageNode; count: number }> {
+  const builtAt=new Date().toISOString();
+  const buildLabel=`Updated ${builtAt.slice(0,10)} ${builtAt.slice(11,19)} UTC · v${PLUGIN_VERSION}`;
   const page = await getOrCreatePage('DS · Assets');
   const cursor = { y: 0 };
   let count = 0;
-  const pool: ElementRec[] = [...inv.elements, ...inv.icons, ...inv.shapes].filter((r) => !r.inInstance || r.nodeType === 'INSTANCE');
+  const pool: ElementRec[] = [...inv.elements, ...inv.icons, ...inv.shapes].filter((r) => !r.inInstance || r.nodeType === 'INSTANCE'||r.category==='character'&&r.artworkRole!=='part'&&!!r.semanticName);
 
   // the category a node has *now*: AI naming may have reclassified it (plugin data wins over the heuristic)
   const resolved: { rec: ElementRec; node: SceneNode; cat: Category }[] = [];
@@ -594,12 +597,16 @@ export async function buildAssets(inv: Inventory, opts: BuildOptions, notes: str
     const rec = pool[i];
     const node = await nodeById(rec.id);
     if (!node) continue;
-    resolved.push({ rec, node, cat: rec.category });
+    const audit=auditedAssetCategory(rec,node);
+    if(audit.reason){notes.push(`Logo audit: moved ${rec.semanticName||rec.name} (${rec.id}) to ${audit.category}: ${audit.reason}.`);rec.category=audit.category;}
+    resolved.push({ rec, node, cat: audit.category });
     if (i % 300 === 0) { progress(80 + (i / pool.length) * 6, `Sorting assets… ${i}/${pool.length}`); await tick(); }
   }
 
-  const intro = await mkSection('Assets', `Every logo, character, illustration, symbol, icon, button, tagline, copy block and vector in the scanned scope, grouped by class and named. Possible debris is shown for review; source artwork is retained. Unrecognized artwork is marked Needs identification.`, page, cursor);
-  intro.section.name = 'Assets · index';
+  const intro = await mkSection('Assets', `Build: approved-logos-4. Final logo output checks applied. Every logo, character, illustration, symbol, icon, button, tagline, copy block and vector in the scanned scope, grouped by class and named. Possible debris is shown for review; source artwork is retained. Unrecognized artwork is marked Needs identification.`, page, cursor);
+  intro.section.name = `Assets · index · ${buildLabel}`;
+  intro.section.setPluginData('dsf.builtAt',builtAt);
+  intro.section.setPluginData('dsf.buildVersion',PLUGIN_VERSION);
   const idx = mkFrame('index', { dir: 'H', gap: 24, wrap: true, w: 1160 });
   for (const sec of ASSET_SECTIONS) {
     const n = resolved.filter((r) => (sec.key==='parts'?r.rec.artworkRole==='part':r.rec.artworkRole!=='part'&&sec.cats.includes(r.cat))).length;
@@ -623,8 +630,10 @@ export async function buildAssets(inv: Inventory, opts: BuildOptions, notes: str
     progress(86, `Assets · ${sec.title}…`);
     await tick();
 
-    const { section, body } = await mkSection(sec.title, `${items.length} found · ${distinct.length} distinct${items.length > sec.cap ? ` · showing ${sec.cap}` : ''}`, page, cursor);
-    section.name = `Assets · ${sec.title}`;
+    const { section, body } = await mkSection(sec.title, `${items.length} found · ${distinct.length} distinct${items.length > sec.cap ? ` · showing ${sec.cap}` : ''}\n${buildLabel}`, page, cursor);
+    section.name = `Assets · ${sec.title} · ${buildLabel}`;
+    section.setPluginData('dsf.builtAt',builtAt);
+    section.setPluginData('dsf.buildVersion',PLUGIN_VERSION);
 
     if (sec.kind === 'list') {
       const col = mkFrame('list', { dir: 'V', gap: 4 });
@@ -660,8 +669,7 @@ export async function buildAssets(inv: Inventory, opts: BuildOptions, notes: str
           cell.appendChild(box);
           box.appendChild(clone);
           unlockSizing(clone);
-          if (w > 480 || h > 480) { const sc = Math.min(480 / w, 480 / h); try { (clone as any).rescale(sc); } catch { /* ignore */ } }
-          clone.x = (box.width - clone.width) / 2; clone.y = (box.height - clone.height) / 2;
+          fitArtworkPreview(d.node, clone, box);
           // vector-class assets become components so they can be reused; buttons stay as-is (they get variant sets on the Components page)
           if (['logos', 'characters', 'illustrations', 'symbols', 'icons', 'vectors'].includes(sec.key)) {
             const comp = figma.createComponentFromNode(box);
@@ -797,3 +805,4 @@ export async function build(inv: Inventory, opts: BuildOptions): Promise<BuildRe
   progress(100, 'Done');
   return { ...res, files };
 }
+import {fitArtworkPreview} from './artwork-preview';

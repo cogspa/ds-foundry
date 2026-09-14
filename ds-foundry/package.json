@@ -1,6 +1,6 @@
 {
   "name": "ds-foundry",
-  "version": "1.5.0",
+  "version": "1.6.9",
   "description": "Figma plugin that scans any file, labels and organises its layers, and builds a design system (styles, variables, components, icons, token files) from what it finds.",
   "private": true,
   "scripts": {

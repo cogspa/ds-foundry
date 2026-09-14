@@ -109,7 +109,7 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--live", action="store_true", help="Calls the configured provider; incurs normal API usage")
     parser.add_argument("--predictions", type=Path, help="Score saved predictions without API calls")
-    parser.add_argument("--provider", choices=["anthropic","gemini","ollama"], default="anthropic")
+    parser.add_argument("--provider", choices=["anthropic","gemini","ollama"], default="gemini")
     parser.add_argument("--model")
     parser.add_argument("--no-critic", action="store_true")
     parser.add_argument("--baseline", type=Path)

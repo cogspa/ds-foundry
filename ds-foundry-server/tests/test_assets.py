@@ -50,6 +50,19 @@ def test_bad_and_low_confidence_are_unmerged(reply):
     m=run([item(1,'a',semanticName='coca cola'),item(2,'b',semanticName='coca cola')],model=FakeListChatModel(responses=[reply]))
     assert len(m.assets)==2 and m.proposals[0].relation=='uncertain'
 
+def test_comparison_failures_show_provider_diagnostics_and_keep_assets_separate():
+    from google.genai.errors import ClientError
+    class UnavailableModel:
+        def invoke(self, messages):
+            raise ClientError(404, {'error': {'message':'Model missing; api_key=private-fixture-key', 'status':'NOT_FOUND'}})
+    req = ResolveRequest(documentId='fixture', provider='gemini', model='missing-model', api_key='private-fixture-key',
+                         items=[item(1,'a',semanticName='coca cola'),item(2,'b',semanticName='coca cola')])
+    result = resolve(req, model=UnavailableModel())
+    assert len(result.assets)==2 and result.proposals[0].relation=='uncertain'
+    assert 'gemini · missing-model · HTTP 404' in result.warnings[0]
+    assert 'Model missing' in result.proposals[0].evidence[0]
+    assert 'private-fixture-key' not in result.model_dump_json()
+
 def approve(m):
     for f in m.assets:f.status='approved'
     return ApprovalRequest(documentId=m.documentId,families=m.assets)

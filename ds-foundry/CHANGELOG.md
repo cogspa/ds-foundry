@@ -1,3 +1,80 @@
+# 1.6.9 — whole characters from nested artwork
+
+- Add Find whole characters in artwork to Steps 1 and 5. Search nested vector groups and recheck named illustrations, including Ollie, without losing their names.
+- Review complete characters separately from scenes, body/wing/face fragments, uncertain groups and redundant nested copies. Keep pink, grey, yellow and green as visible appearance descriptions; identity still requires reference evidence.
+- Promote approved nested groups into Characters as editable copies, keeping source scenes intact and retaining approved groups on later scans. Report the bounded review budget and deferred groups.
+- Send legacy blue-ollie-body/wing fragments to Artwork parts and exclude them from whole-character reference evidence.
+- Preserve inherited rotation/reflection and fit complete rendered bounds inside Assets tiles. Resize tile frames without applying child constraints, avoiding shifted/distorted eye groups.
+- Validate live copies of four real character groups and save their actual layer hierarchy as regression data. Model classification tests are offline fixtures, not measured Gemini accuracy.
+- Companion server 0.3.2 updates classification prompts and rejects fragment names as whole-character references. Gemini defaults, current-logo approval, saved-name recovery and actual request diagnostics remain in place.
+
+# 1.6.8 — Gemini by default
+
+- Start with Local server (.env keys) and Gemini · server default for artwork naming and asset-family comparisons.
+- Use Gemini when an upstream provider is omitted. Claude remains available through an explicit selection.
+
+# 1.6.7 — actual request errors
+
+- Show HTTP status and original diagnostics for direct providers and local-server naming, library and asset-family requests. Preserve FastAPI detail messages, validation errors and provider error bodies; redact credentials.
+- Keep a persistent Request errors & retries panel in Step 5. Mixed outcomes say Partly identified and retain failed-item details alongside successful names.
+- Retry eligible transient naming failures at most once with Retry-After/backoff. Do not automatically replay permanent failures, waits over 60 seconds, unknown network completion or server-reported partial pipelines.
+- Exclude request failures from the second visual comparison pass. Asset-family comparison failures retain the actual diagnostic and keep candidates separate for review.
+- Companion server 0.3.1 preserves provider status, model and phase instead of converting all naming failures to HTTP 502. Requires both updated plugin and server for full diagnostics.
+- Regression coverage uses simulated SDK/provider errors and local fixtures; no paid model requests are needed.
+
+# 1.6.6 — retain recognition references
+
+- Retain saved pose examples even when a local example has the same name. Rank references per batch and include the saved library in the second visual comparison pass.
+- Keep established names without geometry features intact during mixed naming runs. Use named artwork from the scan as references independently of target-category checkboxes.
+- Add Recognize artwork automatically to Step 1, with a direct document scan and Step 5 review. Show loaded reference counts and names; clarify that logo region approval is separate from character recognition.
+- Keep exact-match reuse, rejected-match exclusions, name review and current-logo approval rules. New poses still require visual comparison; color alone does not establish identity.
+- Add regression fixtures for same-name saved poses, reference ranking, library-assisted second look, preserved names and the automatic recognition shortcut. Real-file recognition quality still needs validation in Figma.
+
+# 1.6.5 — detailed tool workflow
+
+- Use the requested 1.6.5 version for this detailed UI edition, superseding the local 1.7.0 workflow iteration below.
+- Number the individual tools: contact-sheet identification, logo inspector, saved library, scan, artwork naming, family comparison, build, and export.
+- Add per-step states and a persistent activity panel with elapsed time, actual phase messages, reported percentages and a delayed-response notice.
+- Show exactly which logo regions need a role; prevent incomplete saves and track source approval separately from reference persistence.
+- Keep failures, partial saves and stopped operations visible with retryable controls. Clear processing indicators when work ends; ignore late progress after completion.
+- Add bounded library/model request timeouts and regression checks for state transitions and the requested step order.
+
+# 1.7.0
+
+- Introduce five guided steps: Scan, References, Identify, Build, and Inspect, with prominent headings and a persistent progress navigator.
+- Applying reviewed names now opens Build options; creating pages requires the Build design system action.
+- Keep review choices while moving between steps, and preserve them when the inventory prefix refreshes.
+- Unlock steps as prerequisites finish; busy operations disable navigation, and failures stay in the current step for retry.
+- Keep no-AI Assets refresh, full-document identification, and linked sheet corrections as returning-user shortcuts.
+
+# 1.6.4
+
+- Add a full-document identification/rebuild flow for Foundations, Components, Icons and sectioned Assets.
+- Share established-name recovery between sheet captions and AI references, including saved original names and structured identities.
+- Preserve conflicting names on identical geometry; do not merge their rename targets.
+- Prioritize unnamed illustrations before icons; named reference thumbnails do not consume the unnamed-item budget.
+- Allow reviewed builds with saved names only; report deferred naming items and failed exports.
+
+# 1.6.3
+
+- Add Rebuild Assets now (no AI): fresh document scan, current source approvals, Assets-only output, no naming-provider calls or source renames.
+
+# 1.6.2
+
+- Stamp Assets section names and subtitles with generation date/time (UTC) and plugin version, including Logos.
+- Store build time/version on generated sections for diagnostics; existing sheets are not restamped without rebuilding.
+
+# 1.6.1
+
+- Composition save now approves the original logo and semantic name.
+- Logos output requires current source approval; stale guesses remain outside Logos.
+- Artwork changes invalidate approval. UI exclusions continue to take precedence.
+
+# 1.6.0
+
+- Show the package version in the Figma development-plugin name and upper-left plugin heading; build keeps both synchronized.
+- Includes logo composition inspection and the final logo-output audit, marked logo-audit-3.
+
 # Changelog
 
 ## 1.5.0 — 2026-09-12

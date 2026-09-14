@@ -42,7 +42,7 @@ class Reference(BaseModel):
 
 
 class NameRequest(BaseModel):
-    provider: Provider = "anthropic"
+    provider: Provider = "gemini"
     model: Optional[str] = Field(default=None, description="Model id; server default for the provider when omitted")
     api_key: Optional[str] = Field(default=None, description="Optional per-request key; falls back to server env")
     items: list[Item] = Field(min_length=1, max_length=40)

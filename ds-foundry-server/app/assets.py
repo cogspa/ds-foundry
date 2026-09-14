@@ -10,6 +10,8 @@ import unicodedata
 from langchain_core.messages import HumanMessage, SystemMessage
 from .asset_schemas import AssetItem, AssetVariant, AssetFamily, AssetMap, AssetProposal, IdentityVerdict, ResolveRequest
 from .asset_prompts import IDENTITY_SYSTEM
+from .request_errors import error_status, safe_message
+from .providers import DEFAULT_MODELS
 
 VISUAL = {'icon','symbol','logo','character','illustration','image','avatar','shape'}
 STOP = set('logo wordmark mark black white red blue green horizontal vertical stacked reverse reversed standard monochrome final vector group frame layer outline lockup image icon symbol illustration'.split())
@@ -209,8 +211,13 @@ def resolve(req: ResolveRequest, references=None, rejected=None, model=None):
                         for key in ('lockup','orientation'):
                             value=getattr(patch,key)
                             if value and (not getattr(item.variant,key) or value=='stacked'): setattr(item.variant,key,value)
-            except Exception:
-                reason=['multimodal response unavailable or malformed; left separate for review']; score=.2
+            except Exception as exc:
+                status = error_status(exc)
+                diagnostic = (f'Comparison failed · {req.provider} · {req.model or DEFAULT_MODELS[req.provider]}'
+                              + (f' · HTTP {status}' if status else '') + ': '
+                              + safe_message(exc, (req.api_key,)))
+                reason=[diagnostic, 'Identity unconfirmed; left separate for review']; score=.2
+                if diagnostic not in warnings: warnings.append(diagnostic)
         proposals.append(AssetProposal(left=left,right=right,confidence=score,evidence=reason,relation=relation,canonicalName=cname))
     if model is not None and calls>=req.maxModelCalls and deferred: warnings.append('Model call budget enforced; remaining candidates need review.')
     # Keep reference-only families only when there is an actionable proposal to them.

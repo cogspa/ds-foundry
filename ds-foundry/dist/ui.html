@@ -120,22 +120,116 @@
   footer { display: flex; gap: 8px; align-items: center; padding: 10px 16px; border-top: 1px solid var(--line); background: var(--bg); }
   footer .grow { flex: 1; }
   @media (prefers-reduced-motion: reduce) { .ledger i, .progress i { transition: none; } }
+
+  /* Guided workflow: one numbered step at a time, with persistent controls. */
+  [hidden] { display: none !important; }
+  body { font-size: 12px; }
+  header { justify-content: space-between; flex-wrap: wrap; }
+  header h1 { font-size: 15px; font-weight: 700; }
+  header .ver { font-size: 11px; }
+  .step-nav { padding: 10px 12px 12px; border-bottom: 1px solid var(--line); background: var(--bg); }
+  .step-nav ol { display: grid; grid-template-columns: repeat(5,minmax(0,1fr)); padding: 0; margin: 0; list-style: none; gap: 5px; }
+  .step-nav button { display: grid; justify-items: center; gap: 5px; width: 100%; padding: 7px 2px; background: var(--bg2); border: 1px solid transparent; border-radius: 7px; color: var(--ink2); font-size: 10px; }
+  .step-nav button span { display: grid; place-items: center; width: 23px; height: 23px; border-radius: 50%; border: 1px solid var(--line); font-size: 12px; font-weight: 700; }
+  .step-nav button[aria-current="step"] { border-color: var(--brand); color: var(--ink); font-weight: 700; background: var(--bg); }
+  .step-nav button[aria-current="step"] span { background: var(--brand); color: var(--brand-ink); border-color: var(--brand); }
+  .step-nav button:disabled { opacity: .65; cursor: default; }
+  .step-nav button.completed:not([aria-current]) span { border-color: var(--brand); color: var(--brand); }
+  main { min-height: 0; min-width: 0; overflow-x: hidden; }
+  .step-heading { padding: 22px 18px 18px; border-bottom: 1px solid var(--line); background: var(--bg2); }
+  .step-kicker { margin: 0 0 7px; color: var(--brand); font-size: 11px; font-weight: 700; letter-spacing: .09em; }
+  .step-heading h2 { font-size: 24px; line-height: 1.18; letter-spacing: -.025em; font-weight: 750; margin: 0 0 10px; }
+  .step-heading p:last-child { margin: 0; color: var(--ink2); font-size: 12px; line-height: 1.6; }
+  section { padding: 18px; }
+  section h2 { font-size: 16px; line-height: 1.25; font-weight: 700; margin-bottom: 12px; }
+  section h2 small { display: block; margin: 4px 0 0; font-size: 11px; }
+  .btn { padding: 8px 11px; }
+  .scan-controls { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 12px; }
+  .scan-controls .seg { width: 100%; justify-content: space-between; }
+  .scan-controls .seg label { flex: 1; text-align: center; padding: 7px; }
+  .scan-controls #scan { width: 100%; }
+  .scan-settings { margin: 12px 0 0; }
+  .scan-settings>.row { padding: 0 12px 12px; }
+  .guide-actions { display: flex; align-items: center; gap: 9px; flex-wrap: wrap; padding: 18px; }
+  .guide-actions { position: sticky; bottom: 0; z-index: 2; background: var(--bg); border-top: 1px solid var(--line); }
+  .guide-actions p { flex-basis: 100%; }
+  .guide-actions .primary { flex: 1; }
+  .guide-summary { margin: 18px 18px 0; padding: 12px; border-left: 3px solid var(--brand); background: var(--bg2); }
+  .guide-details { margin: 12px 18px; border: 1px solid var(--line); border-radius: 7px; }
+  .guide-details summary { padding: 11px 12px; cursor: pointer; font-weight: 600; }
+  .guide-details>p { padding: 0 12px 12px; }
+  .guide-details section { border-bottom: 0; padding: 14px 12px; }
+  .guide-details .btn { max-width: 100%; white-space: normal; }
+  .shortcuts #openSheetReview { margin: 0 12px 14px; }
+  .shortcuts .hint { margin: 8px 0 16px; }
+  #aiSec .guide-details { margin: 12px 0; }
+  .empty { padding: 18px; font-size: 12px; }
+  .empty p+p { margin-top: 8px; }
+  .row { flex-wrap: wrap; }
+  .ai-head { flex-wrap: wrap; }
+  .ai-head .field { min-width: 0; flex: 1 1 150px; }
+  .ai-head select { width: 100%; }
+  #proxyRow>.field { flex: 1 1 100%; }
+  #proxyRow #project { width: auto !important; }
+  .ai-row>div { min-width: 0; }
+  .ai-row .old { white-space: normal; overflow-wrap: anywhere; }
+  .opts { gap: 8px 12px; }
+  .tabs { flex-wrap: wrap; }
+  .legend { grid-template-columns: repeat(3,minmax(0,1fr)); }
+  .ai-rows { max-height: none; overflow: visible; }
+  #aiErrors { margin: 12px 0; padding: 10px; border: 1px solid var(--danger); border-radius: 6px; }
+  #aiErrorText { white-space: pre-wrap; overflow-wrap: anywhere; max-height: 220px; overflow: auto; font: inherit; user-select: text; }
+  footer { flex-wrap: wrap; padding: 9px 14px; }
+  footer .status { margin-top: 0; }
+  #logoSave { margin-top: 10px; white-space: normal; }
+  #sheetName { width: 100%; padding: 8px; margin-top: 10px; }
+  #sheetFields>.btn { margin-top: 8px; }
+  button:focus-visible, summary:focus-visible, select:focus-visible { outline: 2px solid var(--brand); outline-offset: 2px; }
+
+  .step-nav { padding: 8px 12px; }
+  .step-nav ol { grid-template-columns: repeat(8,minmax(0,1fr)); gap: 4px; }
+  .step-nav button { padding: 5px 0; }
+  .step-heading { padding: 18px; }
+  .step-heading h2 { font-size: 24px; }
+  .activity { padding: 10px 16px; background: var(--bg2); border-bottom: 1px solid var(--line); }
+  #activityDetail,#status { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 3; overflow: hidden; }
+  #status { -webkit-line-clamp: 2; }
+  .activity-title { display: flex; align-items: center; gap: 8px; }
+  .activity-title strong { font-size: 13px; }
+  .activity-title i { width: 9px; height: 9px; border-radius: 50%; background: #b77800; flex: none; }
+  .activity-title span { margin-left: auto; white-space: nowrap; color: var(--ink2); }
+  .activity p { margin: 4px 0 0; color: var(--ink2); line-height: 1.4; overflow-wrap: anywhere; }
+  .activity[data-state="processing"] i { width: 13px; height: 13px; border: 2px solid var(--line); border-top-color: var(--brand); background: none; animation: working 1s linear infinite; }
+  .activity[data-state="error"] i,.activity[data-state="partial"] i { background: var(--danger); }
+  .activity[data-state="saved"] i,.activity[data-state="completed"] i { background: #278448; }
+  .activity[data-state="ready"] i { background: var(--brand); }
+  .step-state { margin: 14px 18px 0; padding: 10px 12px; border: 1px solid var(--line); border-left: 3px solid #b77800; border-radius: 5px; }
+  .step-state strong { font-size: 13px; }
+  .step-state p { margin: 4px 0 0; color: var(--ink2); }
+  .step-state[data-state="processing"],.step-state[data-state="ready"] { border-left-color: var(--brand); }
+  .step-state[data-state="error"],.step-state[data-state="partial"] { border-left-color: var(--danger); }
+  .step-state[data-state="saved"],.step-state[data-state="completed"] { border-left-color: #278448; }
+  .checklist { margin: 12px 0; padding-left: 20px; color: var(--ink2); }
+  .checklist li { margin: 6px 0; }
+  #logoRegions>div { display: grid; grid-template-columns: minmax(0,1fr); gap: 6px; }
+  #logoRegions input,#logoRegions select,#logoName { width: 100%; min-width: 0; padding: 7px; border: 1px solid var(--line); border-radius: 5px; background: var(--bg); }
+  #logoFields h2 { font-size: 15px; margin: 16px 0 6px; }
+  .progress.indeterminate i { width: 35% !important; animation: stage-progress 1.3s ease-in-out infinite; }
+  @keyframes working { to { transform: rotate(360deg); } }
+  @keyframes stage-progress { from { transform: translateX(-100%); } to { transform: translateX(300%); } }
+  @media (prefers-reduced-motion: reduce) { .activity i,.progress.indeterminate i { animation: none !important; } }
 </style>
 
-<header>
-  <h1>DS Foundry</h1><span class="ver">1.5.0</span>
-  <span class="grow"></span>
-  <div class="seg" role="radiogroup" aria-label="Scope">
-    <label><input type="radio" name="scope" value="selection" /><span>Selection</span></label>
-    <label><input type="radio" name="scope" value="page" checked /><span>Page</span></label>
-    <label><input type="radio" name="scope" value="document" /><span>Document</span></label>
-  </div>
-  <button class="btn primary" id="scan">Scan</button>
-</header>
-
-<main>
-  <section id="sheetIdentify">
-    <h2>Identify a contact-sheet item</h2>
+<header><h1>DS Foundry v1.6.9</h1><span class="ver">Guided workflow</span></header>
+<nav class="step-nav" aria-label="Workflow steps"><ol><li><button data-guide-step="1" aria-controls="step-1" aria-label="Step 1: Contact sheet" title="Step 1: Contact sheet"><span>1</span></button></li><li><button data-guide-step="2" aria-controls="step-2" aria-label="Step 2: Logo inspector" title="Step 2: Logo inspector"><span>2</span></button></li><li><button data-guide-step="3" aria-controls="step-3" aria-label="Step 3: Reference library" title="Step 3: Reference library"><span>3</span></button></li><li><button data-guide-step="4" aria-controls="step-4" aria-label="Step 4: Scan artwork" title="Step 4: Scan artwork"><span>4</span></button></li><li><button data-guide-step="5" aria-controls="step-5" aria-label="Step 5: Identify artwork" title="Step 5: Identify artwork"><span>5</span></button></li><li><button data-guide-step="6" aria-controls="step-6" aria-label="Step 6: Asset families" title="Step 6: Asset families"><span>6</span></button></li><li><button data-guide-step="7" aria-controls="step-7" aria-label="Step 7: Build system" title="Step 7: Build system"><span>7</span></button></li><li><button data-guide-step="8" aria-controls="step-8" aria-label="Step 8: Inspect and export" title="Step 8: Inspect and export"><span>8</span></button></li></ol></nav><div id="activity" class="activity" data-state="waiting"><div class="activity-title"><i aria-hidden="true"></i><strong id="activityState" role="status" aria-live="polite">Waiting for selection</strong><span id="activityElapsed" aria-hidden="true" hidden></span></div><p id="activityDetail">Select a generated contact-sheet item in Figma, or continue to Step 2.</p><p id="activityDelay" hidden></p></div><main id="workflowMain"><div class="step-panel" id="step-1" aria-labelledby="step-title-1">
+<div class="step-heading"><p class="step-kicker">STEP 1 OF 8</p><h2 id="step-title-1" tabindex="-1">Identify a contact-sheet item</h2><p>Optional: correct a sheet item manually, or start automatic recognition across your file below.</p></div>
+<div class="step-state" id="state-1" data-state="waiting"><strong></strong><p></p></div>
+<section id="sheetIdentify">
+    <button class="btn primary" id="recognizeArtwork">Recognize artwork automatically</button>
+    <button class="btn" id="findCharacters">Find whole characters in artwork</button>
+    <p class="hint">Search original artwork and nested vector groups for individual characters, including color and pose variations. Uses your selected AI provider, with up to 120 groups per run. To narrow the search, select an original scene in Figma and choose Selection in Step 4. Review before applying; scenes remain intact.</p>
+    <p class="hint">Scans source artwork across the document and opens Step 5. Uses established names and saved examples, such as Ollie, to suggest names for similar artwork. Review before applying. Uses your selected AI provider.</p>
+    <h2>1.1 Select, name and update</h2>
     <p class="hint" id="sheetHint">Select one preview or caption in a generated Assets or Icons sheet. Older sheets need to be rebuilt once to enable source links.</p>
     <div id="sheetFields" hidden>
       <input id="sheetName" type="text" placeholder="Name, e.g. cloud or ollie-eyes" aria-label="Asset name" />
@@ -144,33 +238,49 @@
       <button class="btn primary" id="sheetApply">Update original &amp; sheets</button>
       <button class="btn" id="sheetSaveReference">Save as reference</button>
     </div>
-  </section>
-  <div class="empty" id="empty">
-    <p>Scan a page, a selection, or the whole file.</p>
-    <p>DS Foundry reads every layer, collects colours, type, spacing, radii and effects, recognises buttons, inputs, cards, nav bars, icons and more, then builds styles, variables, component sets and documented foundation pages from what it finds.</p>
-    <p>Scan and Resolve are read-only. Build, Apply names and Apply approved make the changes you choose.</p>
-  </div>
-
-  <section id="logoInspector">
-    <h2>Logo composition inspector</h2>
+  </section><div class="guide-actions"><button class="btn primary" data-guide-go="2">Continue to logo inspector →</button><button class="btn quiet" data-guide-go="4">New file? Go to scan</button></div></div><div class="step-panel" id="step-2" aria-labelledby="step-title-2" hidden>
+<div class="step-heading"><p class="step-kicker">STEP 2 OF 8</p><h2 id="step-title-2" tabindex="-1">Logo composition inspector</h2><p>Optional: separate the logo artwork from its lettering, then approve the source and save a reference. Character and image recognition runs in Step 5; logo approval is not required for it.</p></div>
+<div class="step-state" id="state-2" data-state="waiting"><strong></strong><p></p></div>
+<section id="logoInspector">
+    <h2>2.1 Inspect your selected logo</h2>
     <p class="hint">Select original artwork or a linked contact-sheet item. Review the symbol (logotype) and lettering (signature). Regions follow existing layers; outlined lettering needs your input.</p>
     <button class="btn" id="logoInspect">Inspect selected logo</button>
     <p id="logoStatus" class="hint" aria-live="polite"></p>
-    <div id="logoFields" hidden><input id="logoName" aria-label="Approved logo name" placeholder="e.g. owting-logo" />
+    <ol id="logoChecklist" class="checklist"><li>Select one logo in Figma and press Inspect.</li><li>Assign each region a role.</li><li>Save the source approval and reference.</li></ol><div id="logoFields" hidden><input id="logoName" aria-label="Approved logo name" placeholder="e.g. owting-logo" />
     <div id="logoPreview" style="position:relative;width:100%;margin:12px 0;background:#ddd"></div>
-    <div id="logoRegions"></div>
+    <h2>2.2 Assign the regions</h2><div id="logoRegions"></div><h2>2.3 Save the reviewed logo</h2>
     <button class="btn primary" id="logoSave">Save composition &amp; approved logo reference</button>
-    <p class="hint">Saves region metadata on the original and a logo reference to the selected library project. Does not rename layers or confirm the source category. Reinspect after changing artwork.</p></div>
-  </section>
-  <section id="referenceLibrary">
-    <h2>Saved reference library</h2>
+    <p class="hint">Saves region metadata on the original and a logo reference to the selected library project. Approves the source as a logo without renaming its layer. Continue through identification and build Assets to update the sheet. Reinspect after changing artwork.</p></div>
+  </section><div class="guide-actions"><button class="btn" data-guide-go="1">Back</button><button class="btn primary" data-guide-go="3" id="nextReferences">Continue to reference library →</button><p class="hint">No logo to approve? You can continue without saving.</p></div></div><div class="step-panel" id="step-3" aria-labelledby="step-title-3" hidden>
+<div class="step-heading"><p class="step-kicker">STEP 3 OF 8</p><h2 id="step-title-3" tabindex="-1">Saved reference library</h2><p>Optional: load examples the system can recognize, or return here to save items from your name review.</p></div>
+<div class="step-state" id="state-3" data-state="waiting"><strong></strong><p></p></div>
+<section id="referenceLibrary">
+    <h2>3.1 Load or save approved examples</h2>
     <p class="hint">Approved examples are shared across files using the same project on this server. Rename/delete here changes the library only.</p>
     <div class="field"><label for="libraryProject">Project</label><input id="libraryProject" value="default" type="text" /></div>
     <div class="field"><label for="libraryServer">Server</label><input id="libraryServer" value="http://localhost:8000" type="text" /></div>
     <div class="row" style="margin-top:8px"><button class="btn" id="libraryLoad">Load library</button><button class="btn" id="librarySave">Save selected review items</button></div>
     <p class="hint" id="libraryStatus"></p><div id="libraryRows" style="max-height:300px;overflow:auto"></div><details><summary>Rejected matches</summary><button class="btn small" id="rejectionsLoad">Load decisions</button><button class="btn small" id="rejectionsRetry" hidden>Retry saving decisions</button><p class="hint" id="rejectionsStatus"></p><div id="rejectionsRows" style="max-height:200px;overflow:auto"></div></details>
-  </section>
-  <section id="inventory" hidden>
+  </section><div class="guide-actions"><button class="btn" data-guide-go="2">Back</button><button class="btn primary" data-guide-go="4" id="nextIdentify">Continue to scan →</button></div></div><div class="step-panel" id="step-4" aria-labelledby="step-title-4" hidden>
+<div class="step-heading"><p class="step-kicker">STEP 4 OF 8</p><h2 id="step-title-4" tabindex="-1">Scan your source artwork</h2><p>Collect the source layers before naming or building. Scanning does not rename layers or generate pages.</p></div>
+<div class="step-state" id="state-4" data-state="waiting"><strong></strong><p></p></div>
+<section id="scanSetup"><h2>What should we scan?</h2><div class="scan-controls">  <div class="seg" role="radiogroup" aria-label="Scope">
+    <label><input type="radio" name="scope" value="selection" /><span>Selection</span></label>
+    <label><input type="radio" name="scope" value="page" checked /><span>Page</span></label>
+    <label><input type="radio" name="scope" value="document" /><span>Document</span></label>
+  </div>
+<button class="btn primary" id="scan">Scan source artwork</button></div><p class="hint">Use Document to include original artwork across the file, even when you are viewing a generated sheet.</p><details class="guide-details scan-settings"><summary>Naming and spacing settings</summary>    <div class="row" style="gap:14px">
+      <div class="field" style="flex:1"><label for="prefix">Prefix</label><input type="text" id="prefix" value="ds/" spellcheck="false" /></div>
+      <div class="field"><label style="width:auto">Grid</label>
+        <div class="seg" role="radiogroup" aria-label="Base grid">
+          <label><input type="radio" name="grid" value="4" checked /><span>4</span></label>
+          <label><input type="radio" name="grid" value="8" /><span>8</span></label>
+        </div>
+      </div>
+    </div>
+<p class="hint">Set the prefix before applying names. Changing the grid requires a fresh scan.</p></details></section><div class="empty" id="empty">
+    <p>Review the inventory before continuing. Names and pages change only when you choose to apply or build.</p>
+  </div><section id="inventory" hidden>
     <h2>Inventory <small id="invMeta"></small></h2>
     <div class="ledger" id="ledger"></div>
     <div class="legend" id="legend"></div>
@@ -182,17 +292,23 @@
       <button role="tab" data-tab="components">Components</button>
     </div>
     <div class="list" id="list"></div>
-  </section>
-
-  <section id="aiSec" hidden>
-    <h2>Identify &amp; name <small>names layers by what they look like</small></h2>
+  </section><details class="guide-details shortcuts"><summary>Quick rebuild actions</summary><section id="assetRebuildSection"><h2>Quick rebuild actions</h2>
+    <button class="btn primary" id="rebuildFull">Identify unnamed artwork &amp; rebuild all pages</button>
+    <p class="hint">Scans the whole document, preserves established names and proposes names for unidentified artwork. Review names, then build Foundations, Components, Icons and Assets with their category sections. Uses the AI provider selected in Step 5.</p>
+    <button class="btn" id="rebuildAssetsNow">Refresh Assets with saved names (no AI)</button>
+    <p class="hint">Quick Assets-only refresh with current logo approvals. Unidentified artwork will still say “Needs identification”.</p>
+  </section></details><div class="guide-actions"><button class="btn" data-guide-go="3">Back</button><button class="btn primary" data-guide-go="5" id="scanNext">Continue to artwork identification →</button><p id="scanNextHint" class="hint">Scan first to continue.</p></div></div><div class="step-panel" id="step-5" aria-labelledby="step-title-5" hidden>
+<div class="step-heading"><p class="step-kicker">STEP 5 OF 8</p><h2 id="step-title-5" tabindex="-1">Identify and review artwork</h2><p>Automatically recognize characters, scenes and icons using established names and saved examples. Review suggested identities and pose variations, then apply your chosen names.</p></div>
+<div class="step-state" id="state-5" data-state="waiting"><strong></strong><p></p></div>
+<section id="aiSec">
+    <h2>Identify unnamed artwork</h2>
     <div class="ai-head">
       <div class="field"><select id="provider">
-        <option value="anthropic">Claude</option>
-        <option value="gemini">Gemini</option>
         <option value="proxy" selected>Local server (.env keys)</option>
+        <option value="gemini">Gemini</option>
+        <option value="anthropic">Claude</option>
       </select></div>
-      <div class="field" id="apiKeyField"><input type="password" id="apiKey" placeholder="Anthropic API key (sk-ant-…)" autocomplete="off" spellcheck="false" /></div>
+      <div class="field" id="apiKeyField"><input type="password" id="apiKey" placeholder="Gemini API key (AIza…)" autocomplete="off" spellcheck="false" /></div>
       <div class="field"><select id="model"></select></div>
     </div>
     <div class="field" id="customModelRow" hidden style="margin-top:6px"><label for="customModel">Model ID</label><input type="text" id="customModel" placeholder="model id — in proxy mode use provider:model, e.g. gemini:gemini-3.8-flash" spellcheck="false" /></div>
@@ -213,23 +329,28 @@
       <label><input type="checkbox" id="t_text" /> Taglines and copy</label>
       <label><input type="checkbox" id="t_shapes" /> Plain shapes (already get geometry names)</label>
       <label><input type="checkbox" id="t_prefix" checked /> Add prefix and category path</label>
-      <label class="field" style="gap:6px"><span style="color:var(--ink2)">Max items</span><input type="text" id="t_max" value="300" style="width:52px;border:1px solid var(--line);border-radius:6px;padding:3px 6px;background:var(--bg)" /></label>
+      <label class="field" style="gap:6px"><span style="color:var(--ink2)">Max unnamed items</span><input type="text" id="t_max" value="300" style="width:52px;border:1px solid var(--line);border-radius:6px;padding:3px 6px;background:var(--bg)" /></label>
     </div>
-    <p class="hint" id="aiHint">Identical layers are named once and renamed together. Items the model can't name honestly are flagged for you instead of guessed; confidently named characters and logos are used as references to recognise their other views. Established descriptive names are used as references. Exact geometry can inherit a name with measured appearance suffixes; shared vector parts, palette, and stroke thickness guide visual comparison for changed poses. Review suggested identities before applying. Keys are stored only on this device and sent straight to the provider you pick. Proxy mode sends batches to your own DS Foundry server, which adds a critic pass, a shared glossary and a cache. Thumbnails are small (≤ 384 px) to keep cost low.</p>
+    <details class="guide-details"><summary>How identification works</summary><p class="hint" id="aiHint">Identical layers are named once and renamed together. Items the model can't name honestly are flagged for you instead of guessed; confidently named characters and logos are used as references to recognise their other views. Established descriptive names are used as references. Exact geometry can inherit a name with measured appearance suffixes; shared vector parts, palette, and stroke thickness guide visual comparison for changed poses. Review suggested identities before applying. Keys are stored only on this device and sent straight to the provider you pick. Proxy mode sends batches to your own DS Foundry server, which adds a critic pass, a shared glossary and a cache. Thumbnails are small (≤ 384 px) to keep cost low.</p></details>
+    <p class="hint" id="aiCoverage">Illustrations are processed first. Existing names are preserved; up to 32 named artwork thumbnails provide references without using the unnamed-item limit.</p>
+    <p class="hint" id="aiReferenceStatus" aria-live="polite">Established artwork and your project library load automatically when identification starts.</p>
+    <p class="hint" id="characterSummary" hidden aria-live="polite"></p>
+    <details id="aiErrors" hidden open><summary>Request errors &amp; retries</summary><pre id="aiErrorText" aria-live="polite"></pre></details>
     <div class="ai-foot">
-      <button class="btn" id="aiSuggest">Identify &amp; suggest names</button>
+      <button class="btn primary" id="aiSuggest">Identify &amp; suggest names</button>
+      <button class="btn" id="aiFindCharacters">Find whole characters</button>
       <span class="grow" id="aiStatus"></span>
       <button class="btn small" id="aiAll" hidden>Select all</button>
       <button class="btn" id="aiApply" hidden>Apply names</button>
-      <button class="btn primary" id="aiBuild" hidden>Apply names &amp; build sheets</button>
     </div>
     <label class="hint" style="display:block;margin-top:10px"><input id="reuseCorrections" type="checkbox" checked /> Use names I enter to identify similar unnamed items (up to 8 visual comparisons per correction)</label>
     <div class="ai-rows" id="aiRows"></div>
-  </section>
-
-  <section id="canonicalSec" hidden>
+  </section><div class="guide-actions"><button class="btn" data-guide-go="4">Back</button><button class="btn primary" id="aiBuild" hidden>Apply names &amp; continue →</button><button class="btn quiet" id="skipNaming">Continue with saved names only →</button><p class="hint" id="namingNextHint"></p></div></div><div class="step-panel" id="step-6" aria-labelledby="step-title-6" hidden>
+<div class="step-heading"><p class="step-kicker">STEP 6 OF 8</p><h2 id="step-title-6" tabindex="-1">Compare asset families</h2><p>Optional advanced step: compare appearances, review the evidence, and confirm which assets belong together.</p></div>
+<div class="step-state" id="state-6" data-state="waiting"><strong></strong><p></p></div>
+<section id="canonicalSec">
     <h2>Canonical Assets <small>identity across appearances</small></h2>
-    <p class="hint">Match appearances of the same asset. For names describing what each item represents, use Identify & name above, review the results, then Apply names & build sheets.</p>
+    <p class="hint">Match appearances of the same asset. For names describing what each item represents, use Identify &amp; suggest names above, review the results, then Apply names &amp; continue.</p>
     <div class="field" style="margin-top:8px"><label for="assetServer">Server</label><input id="assetServer" type="text" value="http://localhost:8000" /></div>
     <div class="field" style="margin-top:6px"><label for="assetProject">Project</label><input id="assetProject" type="text" value="default" /></div>
     <label style="display:block;margin:8px 0"><input id="assetModel" type="checkbox" /> Compare ambiguous images (uses AI naming provider/model; up to 8 calls)</label>
@@ -242,20 +363,12 @@
     <p class="hint" id="assetStatus" role="status" style="margin-top:8px"></p>
     <div id="assetReview" style="max-height:540px;overflow:auto"></div>
     <div id="assetProposals"></div>
-  </section>
-
-  <section id="buildSec" hidden>
-    <h2>Build</h2>
-    <div class="row" style="gap:14px">
-      <div class="field" style="flex:1"><label for="prefix">Prefix</label><input type="text" id="prefix" value="ds/" spellcheck="false" /></div>
-      <div class="field"><label style="width:auto">Grid</label>
-        <div class="seg" role="radiogroup" aria-label="Base grid">
-          <label><input type="radio" name="grid" value="4" checked /><span>4</span></label>
-          <label><input type="radio" name="grid" value="8" /><span>8</span></label>
-        </div>
-      </div>
-    </div>
-    <label style="display:block;margin:10px 0"><input type="checkbox" id="o_identify" checked /> Identify artwork and review names before building (uses selected AI provider)</label>
+  </section><div class="guide-actions"><button class="btn" data-guide-go="5">Back</button><button class="btn primary" data-guide-go="7" id="nextBuild">Continue to build →</button><p class="hint">You can continue without resolving or applying families.</p></div></div><div class="step-panel" id="step-7" aria-labelledby="step-title-7" hidden>
+<div class="step-heading"><p class="step-kicker">STEP 7 OF 8</p><h2 id="step-title-7" tabindex="-1">Build your design system</h2><p>Review the selected output, then generate your pages. Saved names and current logo approvals carry into the build.</p></div>
+<div class="step-state" id="state-7" data-state="waiting"><strong></strong><p></p></div>
+<div class="guide-summary" id="buildReady"></div><section id="buildSec">
+    <h2>Choose your output</h2>
+    <p class="hint" id="buildSettings"></p>
     <div class="opts">
       <label><input type="checkbox" id="o_labels" checked /> Label layers</label>
       <label><input type="checkbox" id="o_styles" checked /> Colour, text and effect styles</label>
@@ -270,32 +383,118 @@
       <label><input type="checkbox" id="o_assets" checked /> Assets contact sheet</label>
     </div>
     <p class="hint">Layer names are kept, so labels can be reverted. Re-running a build replaces the pages it generated and updates styles in place.</p>
-  </section>
-
-  <section id="results" hidden>
-    <h2>Built</h2>
+  </section><div class="guide-actions"><button class="btn" data-guide-go="6">Back</button><button class="btn primary" id="build" disabled>Build design system</button></div></div><div class="step-panel" id="step-8" aria-labelledby="step-title-8" hidden>
+<div class="step-heading"><p class="step-kicker">STEP 8 OF 8</p><h2 id="step-title-8" tabindex="-1">Inspect and export</h2><p>Check the generated pages and download the files you need. Return to Step 1 to correct an individual sheet item.</p></div>
+<div class="step-state" id="state-8" data-state="waiting"><strong></strong><p></p></div>
+<section id="inspectIntro"><h2>Check the generated sheets</h2><p class="hint">The Assets section title shows its build date, time in UTC, and plugin version. Inspect Logos, Characters, Illustrations, Icons and the other categories before reusing them.</p></section><section id="results" hidden>
+    <h2>Your generated system</h2>
     <div class="stats" id="stats"></div>
     <ul class="notes" id="notes"></ul>
-    <h2>Token files</h2>
+    <h2>Export files</h2>
     <div class="files" id="files"></div>
-  </section>
-</main>
-
+  </section><section><button class="btn" id="openSheetReview">Identify a sheet item — Step 1</button></section><div class="guide-actions"><button class="btn" id="returnBuild">Back to build options</button><button class="btn primary" id="startAgain">Scan again</button></div></div></main>
 <footer>
   <div style="flex:1">
-    <div class="progress" id="progress" hidden><i></i></div>
-    <div class="status" id="status"></div>
+    <div class="progress" id="progress" role="progressbar" aria-label="Current processing stage" aria-valuemin="0" aria-valuemax="100" hidden><i></i></div>
+    <div class="status" id="status" role="status" aria-live="polite">Step 1 is optional. Select a sheet item or continue to Step 2.</div>
   </div>
   <button class="btn quiet" id="revert" hidden>Revert labels</button>
   <button class="btn quiet" id="cancel" hidden>Stop</button>
-  <button class="btn primary" id="build" disabled>Build design system</button>
 </footer>
 
 <script>
   const $ = (s) => document.querySelector(s);
   const send = (m) => parent.postMessage({ pluginMessage: m }, '*');
   let summary = null, built = null, tab = 'colors', sheetCellId=null;
-  $('#sheetApply').onclick=()=>{if(!sheetCellId)return;setBusy(true,'Updating source artwork and sheets…');send({type:'sheet_identify',cellId:sheetCellId,name:$('#sheetName').value,match:$('#sheetMatch').checked,assetName:readTraits($('#sheetTraits'))});};
+  let currentStep=1, workflowBusy=false, referencesReviewed=false, namingAccepted=false, namesApplied=false;
+  let inspectUnlocked=false, activeOperation=null, operationTimer=null, stopRequested=false;
+  const STEP_TITLES=['','Identify a contact-sheet item','Logo composition inspector','Saved reference library','Scan source artwork','Identify and review artwork','Compare asset families','Build your design system','Inspect and export'];
+  const STATE_LABELS={waiting:'Waiting',ready:'Ready',processing:'Processing',review:'Needs your review',saved:'Saved',completed:'Complete',skipped:'Skipped',error:'Failed',partial:'Partly saved',stopped:'Stopped'};
+  const stepStates={};
+  function setStepState(step,state,detail,label=step===5&&state==='partial'?'Partly identified':STATE_LABELS[state]) {
+    stepStates[step]={state,detail,label};
+    const panel=$('#step-'+step),badge=$('#state-'+step);
+    panel.setAttribute('aria-busy',String(state==='processing'));
+    badge.dataset.state=state;badge.querySelector('strong').textContent=label;badge.querySelector('p').textContent=detail;
+    document.querySelector('[data-guide-step="'+step+'"]').dataset.state=state;
+    document.querySelector('[data-guide-step="'+step+'"]').classList.toggle('completed',['saved','completed'].includes(state));
+    renderActivity();
+  }
+  function renderActivity() {
+    const step=activeOperation?.step||currentStep,info=stepStates[step];if(!info)return;
+    $('#activity').dataset.state=info.state;
+    $('#activityState').textContent=(activeOperation?'Step '+step+' · ':'')+info.label;
+    $('#activityDetail').textContent=info.detail;
+    if(!activeOperation){$('#activityElapsed').hidden=true;$('#activityDelay').hidden=true;}
+  }
+  function tickOperation() {
+    if(!activeOperation)return;
+    const seconds=Math.max(0,Math.floor((Date.now()-activeOperation.started)/1000));
+    const silence=Math.max(0,Math.floor((Date.now()-activeOperation.lastUpdate)/1000));
+    $('#activityElapsed').hidden=false;$('#activityElapsed').textContent=seconds<60?seconds+'s elapsed':Math.floor(seconds/60)+'m '+seconds%60+'s elapsed';
+    $('#activityDelay').hidden=silence<30;
+    $('#activityDelay').textContent='No new progress message for '+silence+'s. Waiting for a response; elapsed time does not measure completion.';
+  }
+  function finishOperation(state,detail,step=activeOperation?.step||currentStep) {
+    setBusy(false);setStepState(step,state,detail);status(detail);
+  }
+  function canEnterStep(step) {
+    return step>=1&&step<=4 || (step===5||step===6)&&!!summary || step===7&&!!summary&&namingAccepted || step===8&&!!built;
+  }
+  function syncGuide() {
+    document.querySelectorAll('[data-guide-step]').forEach(button=>{
+      const step=+button.dataset.guideStep;
+      button.disabled=workflowBusy||!canEnterStep(step);
+      if(step===currentStep)button.setAttribute('aria-current','step');else button.removeAttribute('aria-current');
+      button.classList.toggle('completed',['saved','completed'].includes(stepStates[step]?.state));
+    });
+    document.querySelectorAll('[data-guide-go]').forEach(button=>button.disabled=workflowBusy||!canEnterStep(+button.dataset.guideGo));
+    $('#scanNext').disabled=workflowBusy||!summary;
+    $('#skipNaming').disabled=workflowBusy||!summary;
+    $('#openSheetReview').disabled=workflowBusy;
+    $('#returnBuild').disabled=workflowBusy||!canEnterStep(7);
+    $('#startAgain').disabled=workflowBusy;
+    $('#build').disabled=workflowBusy||!canEnterStep(7);
+    $('#scanNextHint').textContent=summary?'Scan complete. Continue to Step 5 to identify artwork.':'Scan first to unlock artwork identification and building.';
+    $('#skipNaming').textContent=namesApplied?'Continue to Step 6 →':'Use saved names · continue →';
+    $('#namingNextHint').textContent=namesApplied?'Your selected names were applied. Continue to optional family comparison.':'Apply selected names or continue using saved names. Unidentified artwork may keep its placeholder.';
+    $('#buildSettings').textContent='Prefix: '+(normPrefix($('#prefix').value)||'(none)')+' · '+grid()+' px spacing grid. Change these in Step 4.';
+    $('#buildReady').textContent=namesApplied?'Your selected names are saved. Choose the output below, then build.':namingAccepted?'This build uses saved names and logo approvals. Unidentified artwork may keep its placeholder.':'Review names in Step 5, or choose to use saved names only.';
+    renderActivity();
+  }
+  function showStep(step,focus=true) {
+    currentStep=step;
+    document.querySelectorAll('.step-panel').forEach(panel=>panel.hidden=panel.id!=='step-'+step);
+    syncGuide();$('#workflowMain').scrollTop=0;
+    if(!workflowBusy&&stepStates[step])status(stepStates[step].detail);
+    if(focus)$('#step-title-'+step).focus({preventScroll:true});
+  }
+  function navigateStep(step) { if(!workflowBusy&&canEnterStep(step))showStep(step); }
+  document.querySelectorAll('[data-guide-step]').forEach(button=>button.onclick=()=>navigateStep(+button.dataset.guideStep));
+  document.querySelectorAll('[data-guide-go]').forEach(button=>button.onclick=()=>navigateStep(+button.dataset.guideGo));
+  $('#skipNaming').onclick=()=>{if(!workflowBusy&&summary){if(!namesApplied)setStepState(5,'skipped','New name suggestions were not applied. The build will use saved names.');finishReviewedBuild();}};
+  $('#openSheetReview').onclick=()=>navigateStep(1);
+  $('#returnBuild').onclick=()=>navigateStep(7);
+  $('#startAgain').onclick=()=>navigateStep(4);
+  function resetWorkflow() {
+    summary=null;built=null;referencesReviewed=false;namingAccepted=false;namesApplied=false;
+    inspectUnlocked=!!sheetCellId;aiReset();
+    $('#inventory').hidden=true;$('#empty').hidden=false;$('#results').hidden=true;
+    setStepState(4,'ready','Choose your scope and press Scan source artwork.');
+    setStepState(5,'waiting','Complete the source scan in Step 4 first.');
+    setStepState(6,'waiting','Complete the source scan in Step 4 first.');
+    setStepState(7,'waiting','Scan in Step 4, then review or skip naming in Step 5.');
+    setStepState(8,'waiting','Build the selected pages in Step 7 first.');
+    syncGuide();
+  }
+  function prepareBuildOptions(options) {
+    if(!options)return;
+    for(const key of ['labels','rename','labelText','styles','variables','foundations','components','icons','assets','tidy'])$('#o_'+key).checked=!!options[key];
+    $('#prefix').value=options.prefix;
+    document.querySelector('input[name=grid][value="'+options.baseGrid+'"]').checked=true;
+    $('#o_rename').disabled=$('#o_labelText').disabled=!options.labels;
+  }
+  $('#sheetApply').onclick=()=>{if(!sheetCellId)return;if(!$('#sheetName').value.trim()){setStepState(1,'review','Enter a name before updating the source and sheets.');return;}showStep(1);setBusy(true,'Updating source artwork and sheets…');send({type:'sheet_identify',cellId:sheetCellId,name:$('#sheetName').value,match:$('#sheetMatch').checked,assetName:readTraits($('#sheetTraits'))});};
 
   const scope = () => document.querySelector('input[name=scope]:checked').value;
   const grid = () => +document.querySelector('input[name=grid]:checked').value;
@@ -309,43 +508,91 @@
   function normPrefix(p) { p = (p || '').trim(); if (!p) return ''; return p.endsWith('/') ? p : p + '/'; }
 
   // ---------- state ----------
-  function setBusy(on, label) {
+  function setBusy(on,label,step=currentStep) {
+    if(on&&!activeOperation){
+      stopRequested=false;activeOperation={step,started:Date.now(),lastUpdate:Date.now()};
+      $('#progress').removeAttribute('aria-valuenow');$('#progress').classList.add('indeterminate');
+      operationTimer=setInterval(tickOperation,1000);
+    }
+    if(on){setStepState(activeOperation.step,'processing',label||'Working…');tickOperation();}
+    if(!on){
+      if(activeOperation&&stepStates[activeOperation.step]?.state==='processing')setStepState(activeOperation.step,'ready',label||'Processing finished. Review the result below.');
+      activeOperation=null;clearInterval(operationTimer);operationTimer=null;
+    }
+    workflowBusy=on;$('#workflowMain').inert=on;
     window.dispatchEvent(new CustomEvent('dsf-busy',{detail:on}));
-    $('#sheetSaveReference').disabled=on;$('#sheetApply').disabled=on; $('#sheetFields').inert=on;
-    $('#aiSuggest').disabled = on; $('#aiApply').disabled = on; $('#aiBuild').disabled = on;
-    $('#scan').disabled = on; $('#build').disabled = on || !summary; $('#revert').disabled = on;
-    $('#cancel').hidden = !on;
-    $('#progress').hidden = !on;
-    if (!on) { $('#progress i').style.width = '0%'; }
-    if (label !== undefined) status(label);
+    $('#sheetSaveReference').disabled=on;$('#sheetApply').disabled=on;$('#sheetFields').inert=on;
+    $('#aiSuggest').disabled=on;$('#aiApply').disabled=on;$('#aiBuild').disabled=on;
+    $('#rebuildAssetsNow').disabled=on;$('#rebuildFull').disabled=on;
+    $('#recognizeArtwork').disabled=on;
+    $('#findCharacters').disabled=$('#aiFindCharacters').disabled=on;
+    $('#scan').disabled=on;$('#revert').disabled=on;
+    // Only native scan/build and canonical resolution support a stop request.
+    $('#cancel').hidden=!on||![4,6,7].includes(activeOperation?.step);
+    $('#cancel').disabled=false;$('#cancel').textContent='Stop';
+    $('#progress').hidden=!on;
+    if(!on){$('#progress i').style.width='0%';$('#progress').classList.remove('indeterminate');$('#progress').removeAttribute('aria-valuenow');}
+    syncGuide();updateApplyCount();
+    if(label!==undefined)status(label);else if(!on&&stepStates[currentStep])status(stepStates[currentStep].detail);
   }
-  function status(msg, err) { const s = $('#status'); s.textContent = msg || ''; s.classList.toggle('err', !!err); }
-
-  $('#scan').onclick = () => { built = null; $('#results').hidden = true; setBusy(true, 'Scanning…'); send({ type: 'scan', scope: scope(), baseGrid: grid(), prefix: normPrefix($('#prefix').value) }); };
-  $('#build').onclick = () => { if ($('#o_identify').checked) { pendingBuildOptions=opts(); $('#t_icons').checked=true; $('#t_art').checked=true; $('#t_components').checked=true; $('#aiSec').scrollIntoView({behavior:'smooth',block:'start'}); $('#aiSuggest').click(); return; } setBusy(true, 'Building…'); send({ type: 'build', options: opts() }); };
-  $('#cancel').onclick = () => { send({ type: 'cancel' }); status('Stopping…'); };
+  function status(msg,err) {
+    const el=$('#status');el.textContent=msg||'';el.classList.toggle('err',!!err);
+    if(activeOperation){activeOperation.lastUpdate=Date.now();setStepState(activeOperation.step,'processing',msg||'Working…',stopRequested?'Stopping':STATE_LABELS.processing);}
+    else if(err)setStepState(currentStep,'error',msg);
+  }
+  $('#scan').onclick = () => { pendingBuildOptions=null;buildAfterNames=false;resetWorkflow();showStep(4);setBusy(true, 'Scanning source artwork…'); send({ type: 'scan', scope: scope(), baseGrid: grid(), prefix: normPrefix($('#prefix').value) }); };
+  $('#rebuildAssetsNow').onclick=()=>{pendingBuildOptions=null;buildAfterNames=false;resetWorkflow();showStep(7);setBusy(true,'Rescanning source artwork and rebuilding Assets—no AI…');send({type:'assets_rebuild',prefix:normPrefix($('#prefix').value),baseGrid:grid()});};
+  $('#rebuildFull').onclick=()=>{
+    pendingBuildOptions={...opts(),styles:true,variables:true,foundations:true,components:true,icons:true,assets:true};
+    for(const id of ['t_icons','t_art','t_images','t_components'])$('#'+id).checked=true;
+    startIdentification(true);
+  };
+  $('#recognizeArtwork').onclick=()=>{
+    if(workflowBusy)return;
+    pendingBuildOptions=null;
+    $('#t_art').checked=true;$('#t_icons').checked=true;
+    startIdentification(true);
+  };
+  $('#build').onclick = () => { if(workflowBusy)return; if (!namingAccepted) { pendingBuildOptions=opts(); $('#t_icons').checked=true; $('#t_art').checked=true; $('#t_components').checked=true; startIdentification(); return; } showStep(7);setBusy(true, 'Building selected pages and data…'); send({ type: 'build', options: opts() }); };
+  $('#cancel').onclick = () => { stopRequested=true;$('#cancel').disabled=true;$('#cancel').textContent='Stopping…';send({ type: 'cancel' }); status('Stop requested. Waiting for the current operation to finish.'); };
   $('#revert').onclick = () => { setBusy(true, 'Restoring layer names…'); send({ type: 'revert' }); };
   $('#prefix').addEventListener('change', () => { if (summary) send({ type: 'relabel', prefix: normPrefix($('#prefix').value) }); });
+  document.querySelectorAll('input[name=grid]').forEach(input=>input.addEventListener('change',()=>{if(summary){pendingBuildOptions=null;buildAfterNames=false;resetWorkflow();showStep(4);status('Grid changed. Scan again to update spacing measurements.');}}));
   $('#o_labels').addEventListener('change', (e) => { $('#o_rename').disabled = $('#o_labelText').disabled = !e.target.checked; });
   $('#tabs').addEventListener('click', (e) => { const b = e.target.closest('[data-tab]'); if (!b) return; tab = b.dataset.tab; renderTabs(); renderList(); });
   $('#list').addEventListener('click', (e) => { const b = e.target.closest('[data-select]'); if (b) send({ type: 'select', category: b.dataset.select }); });
 
   window.onmessage = (e) => {
-    const m = e.data.pluginMessage; if (!m) return;
-    if(m.type==='logo_inspected'){showLogoComposition(m.data);}
-    if(m.type==='logo_saved'){persistLogoReference(m.entry);}
-    if(m.type==='logo_error'){$('#logoStatus').textContent=m.msg;$('#logoSave').disabled=false;$('#logoInspect').disabled=false;}
-    if(m.type==='sheet_reference_ready'){saveSheetReference(m.entry);}
-    if(m.type==='sheet_selection'){sheetCellId=m.cellId;$('#sheetFields').hidden=!sheetCellId;if(sheetCellId){$('#sheetName').value=m.name||'';$('#sheetTraits').innerHTML=traitFields(m.assetName);$('#sheetHint').textContent='Original: '+m.sourceName;}else $('#sheetHint').textContent='Select one preview or caption in an Assets or Icons sheet. Rebuild older sheets once to enable source links.';}
-    if(m.type==='sheet_identified'){setBusy(false,`Named ${m.sources} source layers and updated ${m.sheets} sheet entries.`);$('#sheetName').value=m.name;}
-    if (m.type === 'progress') { $('#progress').hidden = false; $('#progress i').style.width = m.pct + '%'; status(m.msg); }
-    if (m.type === 'scanned') { summary = m.summary; setBusy(false, `Scanned ${summary.nodeCount.toLocaleString()} layers on ${summary.pages.length} page${summary.pages.length === 1 ? '' : 's'}.`); renderInventory(); }
-    if (m.type === 'built') { built = m.result; setBusy(false, 'Design system built.'); renderResults(); }
-    if (m.type === 'reverted') { setBusy(false, `Restored ${m.count} layer names.`); }
-    if (m.type === 'error') { buildAfterNames = false; setBusy(false); aiBusy = false; aiStatus(m.msg, true); status(m.msg, true); }
-    if (m.type === 'ai_keys') { aiKeys = m.keys || {}; $('#apiKey').value = provider()==='proxy' ? '' : aiKeys[provider()] || ''; }
-    if (m.type === 'ai_items') { aiReceiveQueue = aiReceiveQueue.then(() => aiReceive(m)).catch(e => { aiBusy=false; setBusy(false); aiStatus(String(e.message || e),true); }); }
-    if (m.type === 'ai_applied') { setBusy(false, `Renamed ${m.count} layers.`); aiStatus(`Renamed ${m.count} layers. Revert labels restores the originals.`); $('#aiApply').hidden = true; $('#aiBuild').hidden = true; $('#aiAll').hidden = true; $('#aiRows').innerHTML = ''; if (buildAfterNames) { buildAfterNames = false; setBusy(true, 'Building named contact sheets…'); send({type:'build',options:pendingBuildOptions || {...opts(),labels:false,styles:false,variables:false,foundations:false,tidy:false,components:true,icons:true,assets:true}}); pendingBuildOptions=null; } }
+    const m=e.data.pluginMessage;if(!m)return;
+    if(m.type==='logo_inspected'){setBusy(false);showLogoComposition(m.data);}
+    if(m.type==='logo_saved'){logoApprovalSaved=true;updateLogoChecklist();$('#logoStatus').textContent='Source logo approved. Saving its reference to the project library…';status($('#logoStatus').textContent);persistLogoReference(m.entry);}
+    if(m.type==='logo_error'){finishOperation('error',m.msg,2);$('#logoStatus').textContent=m.msg;$('#logoInspect').disabled=false;$('#logoSave').disabled=!logoCanSave();}
+    if(m.type==='sheet_reference_ready'){status('Preview exported. Saving the reference to the project library…');saveSheetReference(m.entry);}
+    if(m.type==='sheet_selection'){
+      const changed=sheetCellId!==m.cellId;sheetCellId=m.cellId;$('#sheetFields').hidden=!sheetCellId;
+      if(sheetCellId){$('#sheetName').value=m.name||'';$('#sheetTraits').innerHTML=traitFields(m.assetName);$('#sheetHint').textContent='Original: '+m.sourceName;if(changed||stepStates[1]?.state!=='saved')setStepState(1,'review','Selected: '+m.sourceName+'. Enter the correct name, then press Update original & sheets.');}
+      else{$('#sheetHint').textContent='Select a preview or caption in an Assets or Icons sheet. Rebuild older sheets once to enable source links.';setStepState(1,'waiting','Select a generated sheet item in Figma, or continue to Step 2.','Waiting for selection');}
+      syncGuide();
+    }
+    if(m.type==='sheet_identified'){finishOperation('saved',`Named ${m.sources} source layers and updated ${m.sheets} sheet entries.`,1);$('#sheetName').value=m.name;}
+    if(m.type==='progress'&&activeOperation){
+      if(Number.isFinite(m.pct)){$('#progress').classList.remove('indeterminate');const pct=Math.max(0,Math.min(100,m.pct));$('#progress i').style.width=pct+'%';$('#progress').setAttribute('aria-valuenow',String(pct));}
+      status(m.msg);
+    }
+    if(m.type==='scanned'){
+      const newScan=m.newScan||!summary;summary=m.summary;
+      if(newScan){namingAccepted=false;namesApplied=false;built=null;$('#results').hidden=true;aiReset();setStepState(5,'ready','Choose what to identify, then press Identify & suggest names.');setStepState(6,'ready','Optional: resolve families, then review the proposed matches.');}
+      renderInventory();const detail=`Scanned ${summary.nodeCount.toLocaleString()} layers on ${summary.pages.length} page${summary.pages.length===1?'':'s'}.`;
+      if(m.continuing){aiBusy=true;setStepState(4,'completed',detail);status(detail+' Continuing the requested operation…');}
+      else if(activeOperation?.step===4){finishOperation('completed',detail+' Continue to Step 5.',4);}
+      else{setStepState(4,'completed',detail);syncGuide();}
+    }
+    if(m.type==='built'){built=m.result;aiBusy=false;inspectUnlocked=true;finishOperation('completed','Build complete. Generated '+built.pages.length+' pages. Inspect the results in Step 8.',7);setStepState(8,'review','Check the generated pages and their date/version stamps, then download your exports.');renderResults();showStep(8);}
+    if(m.type==='reverted'){namingAccepted=false;namesApplied=false;aiReset();finishOperation('completed',`Restored ${m.count} layer names. Review identification before rebuilding.`);if(currentStep===7)showStep(5);}
+    if(m.type==='error'){const step=activeOperation?.step||currentStep;const stopped=stopRequested&&/^Stopped\b/.test(m.msg);buildAfterNames=false;aiBusy=false;finishOperation(stopped?'stopped':'error',m.msg,step);if(step===5){$('#aiStatus').textContent=m.msg;}$('#status').classList.toggle('err',!stopped);}
+    if(m.type==='ai_keys'){aiKeys=m.keys||{};$('#apiKey').value=provider()==='proxy'?'':aiKeys[provider()]||'';}
+    if(m.type==='ai_items'){aiReceiveQueue=aiReceiveQueue.then(()=>aiReceive(m)).catch(e=>{aiBusy=false;finishOperation('error',String(e.message||e),5);$('#aiStatus').textContent=String(e.message||e);});}
+    if(m.type==='ai_applied'){namesApplied=true;namingAccepted=true;aiReviewReady=false;finishOperation('saved',`Renamed ${m.count} layers. Continue to Step 6, then build in Step 7.`,5);$('#aiStatus').textContent=`Renamed ${m.count} layers. Revert labels restores the originals.`;$('#aiApply').hidden=true;$('#aiBuild').hidden=true;$('#aiAll').hidden=true;$('#aiRows').innerHTML='';if(buildAfterNames)finishReviewedBuild();}
   };
   send({ type: 'ai_key_get' }); send({type:'sheet_inspect'});
 
@@ -360,7 +607,6 @@
   }
   function renderInventory() {
     $('#empty').hidden = true; $('#inventory').hidden = false; $('#aiSec').hidden = false; $('#canonicalSec').hidden = false; $('#buildSec').hidden = false; $('#revert').hidden = false;
-    aiReset();
     $('#invMeta').textContent = summary.pages.length === 1 ? summary.pages[0] : `${summary.pages.length} pages`;
     const c = counts();
     // ledger: log-scaled so a thousand elements doesn't flatten the token classes
@@ -423,19 +669,19 @@
 
   // ---------- AI naming ----------
   const PROVIDERS = {
-    anthropic: {
-      label: 'Claude', keyHint: 'Anthropic API key (sk-ant-…)',
-      models: [['claude-sonnet-5', 'Sonnet 5'], ['claude-haiku-4-5', 'Haiku 4.5 (cheapest)'], ['claude-opus-5', 'Opus 5']],
-    },
     gemini: {
       label: 'Gemini', keyHint: 'Gemini API key (AIza…)',
       models: [['gemini-3.7-flash', 'Gemini 3.7 Flash'], ['gemini-3.8-flash', 'Gemini 3.8 Flash'], ['gemini-3.5-flash-lite', 'Gemini 3.5 Flash-Lite (cheapest)'], ['gemini-3.1-pro-preview', 'Gemini 3.1 Pro (preview)']],
     },
+    anthropic: {
+      label: 'Claude', keyHint: 'Anthropic API key (sk-ant-…)',
+      models: [['claude-sonnet-5', 'Sonnet 5'], ['claude-haiku-4-5', 'Haiku 4.5 (cheapest)'], ['claude-opus-5', 'Opus 5']],
+    },
     proxy: {
       label: 'Proxy', keyHint: 'Upstream API key (optional if the server has one)',
       // value = "<upstream provider>:<model or blank for server default>"
-      models: [['anthropic:', 'Claude · server default'], ['anthropic:claude-sonnet-5', 'Claude · Sonnet 5'], ['anthropic:claude-haiku-4-5', 'Claude · Haiku 4.5'],
-               ['gemini:', 'Gemini · server default'], ['gemini:gemini-3.7-flash', 'Gemini · 3.7 Flash'], ['gemini:gemini-3.5-flash-lite', 'Gemini · 3.5 Flash-Lite'],
+      models: [['gemini:', 'Gemini · server default'], ['gemini:gemini-3.7-flash', 'Gemini · 3.7 Flash'], ['gemini:gemini-3.8-flash', 'Gemini · 3.8 Flash'], ['gemini:gemini-3.5-flash-lite', 'Gemini · 3.5 Flash-Lite'],
+               ['anthropic:', 'Claude · server default'], ['anthropic:claude-sonnet-5', 'Claude · Sonnet 5'], ['anthropic:claude-haiku-4-5', 'Claude · Haiku 4.5'],
                ['ollama:', 'Ollama · server default (local)']],
     },
   };
@@ -461,28 +707,55 @@
   $('#model').addEventListener('change', () => { $('#customModelRow').hidden = $('#model').value !== '__custom'; if (!$('#customModelRow').hidden) $('#customModel').focus(); });
   renderModels();
   let pendingBuildOptions = null;
+  let aiReviewReady=false;
   let buildAfterNames = false, aiReceiveQueue = Promise.resolve();
-  let aiItems = [], aiBusy = false, aiExpected = 0, aiDoneStreaming = false;
+  let aiItems = [], aiBusy = false, aiExpected = 0, aiDoneStreaming = false, aiRunHadError=false, aiCharacterMode=false;
+  let requestErrors=[];
+  function clearRequestErrors(){requestErrors=[];$('#aiErrors').hidden=true;$('#aiErrorText').textContent='';}
+  function recordRequestError(message){
+    const safe=safeErrorText(message);
+    if(!requestErrors.includes(safe))requestErrors.push(safe);
+    requestErrors=requestErrors.slice(-10);$('#aiErrors').hidden=false;$('#aiErrorText').textContent=requestErrors.join('\n\n');
+  }
   const GENERIC = new Set(['icon', 'image', 'frame', 'group', 'vector', 'rectangle', 'shape', 'component', 'layer', 'screen', 'card', 'element', 'item', 'picture', 'graphic']);
 
-  function aiStatus(msg, err) { const s = $('#aiStatus'); s.textContent = msg || ''; s.style.color = err ? 'var(--danger)' : ''; }
-  function aiReset() { aiItems = []; aiBusy = false; $('#aiRows').innerHTML = ''; $('#aiApply').hidden = true; $('#aiBuild').hidden = true; $('#aiAll').hidden = true; aiStatus(''); }
+  function aiStatus(msg,err){const el=$('#aiStatus');el.textContent=msg||'';el.style.color=err?'var(--danger)':'';if(err)aiRunHadError=true;if(msg){if(activeOperation?.step===5)status(msg);else if(!workflowBusy)setStepState(5,err?'error':'review',msg);}}
+  function aiReset() { aiItems = []; aiBusy = false;aiReviewReady=false;aiCharacterMode=false;$('#characterSummary').hidden=true; clearRequestErrors(); $('#aiRows').innerHTML = ''; $('#aiApply').hidden = true; $('#aiBuild').hidden = true; $('#aiAll').hidden = true; $('#aiReferenceStatus').textContent='Established artwork and your project library load automatically when identification starts.'; aiStatus(''); updateApplyCount(); }
   const targets = () => ({ icons: $('#t_icons').checked, art: $('#t_art').checked, images: $('#t_images').checked, screens: $('#t_screens').checked, cards: $('#t_cards').checked, components: $('#t_components').checked, text: $('#t_text').checked, shapes: $('#t_shapes').checked });
 
   $('#apiKey').addEventListener('change', () => { aiKeys[provider()] = $('#apiKey').value.trim(); send({ type: 'ai_key_set', provider: provider(), key: aiKeys[provider()] }); });
-  $('#aiSuggest').onclick = () => {
+  function startIdentification(rescanDocument=false,charactersOnly=false) {
+    if(workflowBusy)return;
+    referencesReviewed=true;$('#aiSec').hidden=false;showStep(5);
     const key = $('#apiKey').value.trim();
     if (!key && provider() !== 'proxy') { aiStatus(`Direct ${PROVIDERS[provider()].label} mode needs a key here. Select Local server (.env keys) to use your server’s key.`, true); $('#apiKey').focus(); return; }
     if (!modelId() && provider() !== 'proxy') { aiStatus('Enter a model ID.', true); $('#customModel').focus(); return; }
     if (provider() === 'proxy' && !/^https?:\/\//.test(proxyUrl())) { aiStatus('Enter the server URL, e.g. http://localhost:8000', true); $('#proxyUrl').focus(); return; }
     if (aiBusy) return;
-    aiItems = []; aiExpected = 0; aiDoneStreaming = false; aiBusy = true;
+    if(rescanDocument){resetWorkflow();referencesReviewed=true;}
+    aiCharacterMode=charactersOnly;$('#characterSummary').hidden=!charactersOnly;
+    $('#characterSummary').textContent=charactersOnly?'Checking original groups for one complete character. Parts, multi-character scenes and uncertain groups stay out of the character results.':'';
+    namingAccepted=false;namesApplied=false;buildAfterNames=false;aiRunHadError=false;
+    clearRequestErrors();
+    aiItems = []; aiExpected = 0; aiDoneStreaming = false; aiBusy = true;aiReviewReady=false;
+    $('#aiReferenceStatus').textContent='Preparing established artwork references…';
     $('#aiRows').innerHTML = ''; $('#aiApply').hidden = true; $('#aiBuild').hidden = true; $('#aiAll').hidden = true;
     setBusy(true, 'Exporting thumbnails…'); aiStatus('Exporting thumbnails…');
-    send({ type: 'ai_prepare', targets: targets(), maxItems: Math.max(1, Math.min(2000, +$('#t_max').value || 300)) });
-  };
+    send({ type: 'ai_prepare', targets: targets(), maxItems: Math.max(1, Math.min(charactersOnly?120:2000, +$('#t_max').value || 300)),rescanDocument,charactersOnly,characterScope:scope(),baseGrid:grid(),prefix:normPrefix($('#prefix').value) });
+  }
+  $('#aiSuggest').onclick=()=>startIdentification();
+  $('#findCharacters').onclick=$('#aiFindCharacters').onclick=()=>startIdentification(true,true);
   $('#aiAll').onclick = () => { const boxes = [...document.querySelectorAll('#aiRows input[type=checkbox]')]; const all = boxes.every((b) => b.checked); boxes.forEach((b) => (b.checked = !all)); updateApplyCount(); };
-  $('#aiBuild').onclick = () => { buildAfterNames = true; $('#aiApply').click(); };
+  function finishReviewedBuild(){
+    buildAfterNames=false;namingAccepted=true;
+    prepareBuildOptions(pendingBuildOptions);pendingBuildOptions=null;
+    setBusy(false);setStepState(6,'ready','Optional: resolve and review families, or continue to Step 7 without applying changes.');setStepState(7,'ready','Review your output choices, then press Build design system.');showStep(6);
+  }
+  $('#aiBuild').onclick = () => {
+    if(workflowBusy||!aiReviewReady)return;
+    if(!document.querySelector('#aiRows input[type=checkbox]:checked')){finishReviewedBuild();return;}
+    buildAfterNames = true; $('#aiApply').click();
+  };
   $('#aiApply').onclick = () => {
     const renames = [];
     document.querySelectorAll('#aiRows .ai-row').forEach((row) => {
@@ -504,9 +777,10 @@
   });
   $('#aiRows').addEventListener('toggle',e=>{if(e.target.tagName!=='DETAILS'||!e.target.hasAttribute('data-identity-details')||e.target.open)return;const row=e.target.closest('.ai-row');if(!row)return;const it=aiItems[+row.dataset.i];if(it.manualName&&it.assetName&&$('#reuseCorrections').checked)reuseIdentification(it);},true);
   $('#aiRows').addEventListener('input', (e) => { if(e.target.hasAttribute('data-match-value'))return; if(e.target.hasAttribute('data-trait')){const row=e.target.closest('.ai-row'),it=aiItems[+row.dataset.i];it.assetName=readTraits(row);if(it.assetName){it.suggested=window.DSFAssetNames.assetName(it.assetName);row.querySelector('input[type=text]').value=it.suggested;it.referenceName=it.suggested;it.manualName=true;it.needsName=false;it.selected=true;row.querySelector('input[type=checkbox]').checked=true;updateApplyCount();}return;} if (e.target.type === 'text') { const row=e.target.closest('.ai-row'),it=aiItems[+row.dataset.i]; const cb = row.querySelector('input[type=checkbox]'); cb.checked = !!e.target.value.trim(); it.assetName=null;row.querySelectorAll('[data-trait]').forEach(el=>el.value='');it.suggested=e.target.value.trim(); it.selected=cb.checked; it.manualName=true; it.needsName=!it.suggested; it.referenceName=it.suggested || undefined; updateApplyCount(); } });
-  function updateApplyCount() { const n = document.querySelectorAll('#aiRows input[type=checkbox]:checked').length; $('#aiApply').textContent = `Apply ${n} name${n === 1 ? '' : 's'}`; $('#aiApply').disabled = !n; $('#aiBuild').disabled = !n; }
+  function updateApplyCount() { const n = document.querySelectorAll('#aiRows input[type=checkbox]:checked').length; $('#aiApply').textContent = `Apply ${n} name${n === 1 ? '' : 's'}`; $('#aiApply').disabled = workflowBusy||!n; $('#aiBuild').disabled = workflowBusy||!aiReviewReady;$('#aiBuild').textContent=n?'Apply names & continue →':'Continue with saved names →';$('#skipNaming').hidden=aiReviewReady&&n===0; }
 
   async function aiReceive(m) {
+    if(m.charactersOnly||m.items.some(it=>it.characterSearch))aiCharacterMode=true;
     for (const it of m.items) {
       try { it.dataUrl = await toThumb(it.png, it.category === 'icon'); } catch { it.dataUrl = null; }
       delete it.png;
@@ -514,7 +788,16 @@
     }
     aiExpected = m.total;
     aiStatus(`Exported ${aiItems.length} of ${m.total} thumbnails…`);
-    if (m.done) { aiDoneStreaming = true; await aiRun(); setBusy(false); updateApplyCount(); }
+    if (m.done) {
+      aiDoneStreaming = true;
+      $('#aiCoverage').textContent=`${m.preserved||0} established names preserved. ${aiItems.filter(it=>!it.referenceName).length} unnamed items prepared.`+(m.deferred?` ${m.deferred} more unnamed items exceed this run’s limit; increase Max unnamed items or run again after applying names.`:'')+(m.exportFailures?` ${m.exportFailures} thumbnails could not be exported.`:'');
+      if(aiCharacterMode)$('#aiCoverage').textContent=`${aiItems.filter(it=>!it.referenceName).length} groups prepared for character review · ${m.nestedCandidates||0} nested groups found.`+(m.deferred?` ${m.deferred} more groups exceed this run’s limit (up to 120); narrow the source artwork or review another selection.`:'')+(m.exportFailures?` ${m.exportFailures} previews unavailable.`:'');
+      $('#progress').classList.add('indeterminate');$('#progress').removeAttribute('aria-valuenow');
+      await aiRun();
+      const detail=$('#aiStatus').textContent||'Review the prepared names.';
+      const failed=!aiReviewReady||(aiRunHadError&&!aiItems.some(it=>!it.characterExcluded&&!it.error&&it.suggested));
+      finishOperation(failed?'error':aiItems.some(it=>it.error)?'partial':'review',detail,5);updateApplyCount();
+    }
   }
 
   // composite on white, cap the long edge, return a PNG data URL
@@ -541,23 +824,34 @@ Rules:
 - Taglines and copy: name by the message, not the words: welcome-tagline, pricing-intro, footer-legal.
 - Never use generic words alone (icon, image, frame, vector, rectangle, shape, component). Do not include prefixes or slashes. Do not invent brand names you cannot see — but if a wordmark is legible, use it (owting-logo). If text is visible, prefer names that use it.
 Also classify each item with "kind", choosing the best of: icon, symbol, logo, character, illustration, image, avatar, screen, section, nav, card, list-item, button, badge, input, tagline, copy, shape, debris, abstract. The provided category is a guess from geometry — correct it when the picture says otherwise (a "symbol" that is clearly a mascot is a character; a "illustration" that is a wordmark is a logo; a stray speck is debris).
-- A character is a figure with a face, body or pose (mascot, animal, person). An illustration is a scene or object without a face. A logo is a mark, wordmark or lockup that identifies a brand.
+- A character is ONE complete figure (mascot, animal, person), including a recognizable back/side view. A detached torso, wing, eye pair, beak or face alone is a part: use kind symbol and a body/wing/eyes-only/face-only suffix. Multi-character groups and scenery remain illustrations even when they contain characters. A logo identifies a brand.
+- For character search, judge the whole supplied group, regardless of its old category or name. Colored blobs alone do not establish a character. Recognize pink, grey, yellow, green and blue figures by body, face and pose together. For an unnamed figure, use a visible color + subject + pose (pink-owl-waving); reuse a personal identity such as Ollie only when reference evidence supports it. A wing/torso reference never proves the entire group is a complete character.
 - Require brand evidence for logos. Width, a box/circle, several vectors, or a symbol next to text are not sufficient. Logos may be standalone marks, wordmarks/logotypes, or horizontal/stacked mark-and-brand-name lockups/signatures. Lettering can be outlined vectors. An owl-eye mark beside readable "owting" is an Owting brand lockup; use visible lettering without inventing brands.
 - Classify the whole object: time/signal/Wi-Fi/battery status bars and pagination dots are nav/UI, not logos. "Continue with Google" is a button; only its extracted Google G is a logo. UI purpose overrides stale logo hints. Generic icons or mascots are not logos without brand evidence; leave uncertain artwork as symbol/icon/illustration or abstract for review.
 - If a shape is too abstract to name honestly, set "kind": "abstract" and "name": "" — the designer will name it. Do not guess.
 - With references, compare distinctive face/eye/beak/body geometry, not color alone. Preserve an established reference name when the character is the same; append a short visible variation such as drinking, waving, eyes-only, green, thin-outline, or playing-guitar. Never assign a pose from geometry scores alone. Different colored characters may be different identities: ask for review if uncertain. A scene containing several characters must keep a scene name, not inherit one character's name. Partial faces are parts (use eyes-only or face-only), not whole-character duplicates.
-- REFERENCES, when provided, are already-named characters and logos from this project. If an item is another view, crop, pose or partial of a reference (its back, its side, a detail), name it <reference-name>-<view>, e.g. owl-mascot-back, and use the same kind.
+- REFERENCES are named project examples. Reuse identity for a supported view/pose, with a visible variation suffix. Whole figures use character; detached parts use symbol even when the reference is a whole character.
 Return ONLY a JSON array, no prose, no code fence: [{"i":0,"name":"search","what":"magnifying glass outline","kind":"icon","confidence":0.95}, ...] with one entry per image, in order. Confidence 0-1.`;
 
   async function aiRun() {
-    if (!aiItems.length) { aiBusy = false; aiStatus('Nothing to name in the selected categories.'); return; }
+    // Preserve all established labels, including examples without vector features.
+    const localReferences=aiItems.filter(it=>it.referenceName);
+    localReferences.forEach(it=>{it.suggested=it.referenceName;it.kind=it.category;it.confidence=1;it.source='existing name';});
+    if (aiItems.every(it=>it.referenceName)) {
+      $('#aiReferenceStatus').textContent=localReferences.length+' established examples retained. No unnamed items in this run.';
+      if(aiCharacterMode)reviewCharacters();
+      renderAi();aiBusy=false;aiStatus(aiItems.length?'Prepared artwork already has names. Continue to Step 6 when ready.':'No naming suggestions were prepared. Check the coverage above; building will use saved names.');return;
+    }
     const key = $('#apiKey').value.trim(), model = modelId();
     $('#libraryProject').value=$('#project').value.trim()||'default';$('#libraryServer').value=proxyUrl();
     try{await loadRejections(libraryContext());}catch(e){aiStatus('Cannot load rejected matches. '+e.message,true);aiBusy=false;return;}
     let savedReferences=[],libraryIssue='';
+    aiStatus('Loading saved examples and matching established artwork…');
     try{savedReferences=await loadLibraryReferences();}catch(e){libraryIssue=' Saved library unavailable: '+e.message;}
-    const localReferences=aiItems.filter(it=>it.referenceName&&it.features);
-    const references=[...localReferences,...savedReferences.filter(r=>!localReferences.some(l=>l.referenceName===r.referenceName))];
+    // Multiple approved poses may share a name. Each image remains useful evidence.
+    const references=[...localReferences,...savedReferences].filter(r=>!window.DSFCharacters.isPart(r.referenceName||r.suggested,r.assetName?.appearance.crop)&&(!aiCharacterMode||(r.kind||r.category)==='character'));
+    const referenceNames=[...new Set(references.map(r=>r.referenceName))];
+    $('#aiReferenceStatus').textContent=localReferences.length+' examples from this file · '+savedReferences.length+' saved examples in '+libraryContext().project+'.'+(referenceNames.length?' References: '+referenceNames.slice(0,6).join(', ')+(referenceNames.length>6?'…':'')+'.':' No named examples found; visual naming will describe the artwork.')+libraryIssue;
     references.forEach(it=>{it.suggested=it.referenceName;it.kind=it.category;it.confidence=1;it.source='existing name';});
     const pending=[];
     for(const it of aiItems.filter(it=>!references.includes(it))) {
@@ -579,23 +873,38 @@ Return ONLY a JSON array, no prose, no code fence: [{"i":0,"name":"search","what
       while (cursor < batches.length) {
         const b = batches[cursor++];
         try {
-          const ranked=[...new Set(b.flatMap(it=>(it.referenceMatches||[]).map(m=>m.ref)))];
-          const refs=[...ranked,...references.filter(r=>!ranked.includes(r))].slice(0,6);
+          const refs=referencesFor(b,references);
           await aiName(b, key, model,refs);
-        } catch (e) { failed += b.length; b.forEach((it) => (it.error = String(e.message || e))); }
+        } catch (e) { failed += b.length; const detail=safeErrorText(e.message||e);b.forEach(it=>it.error=detail);recordRequestError(detail);aiRunHadError=true; }
         done++; aiStatus(`Named batch ${done}/${batches.length}${failed ? ` · ${failed} failed` : ''}`);
       }
     }
     await Promise.all(Array.from({ length: Math.min(CONCURRENCY, batches.length) }, worker));
-    try { await reconcileCharacters(key, model); } catch {}
+    try { await reconcileCharacters(key, model, references); } catch {}
+    if(aiCharacterMode)reviewCharacters();
     dedupeNames();
     // rows that need a human first, then low confidence, then the rest
     aiItems.sort((a, b) => (b.needsName ? 1 : 0) - (a.needsName ? 1 : 0) || (a.confidence || 0) - (b.confidence || 0));
     renderAi();
     aiBusy = false;
-    const ok = aiItems.filter((it) => it.suggested).length, todo = aiItems.filter((it) => it.needsName).length;
-    aiStatus(ok ? `${ok} names suggested${todo ? ` · ${todo} need your name (listed first)` : ''}. Edit any, untick what to skip, then apply.` : `No names came back. ${aiItems[0] && aiItems[0].error ? aiItems[0].error : ''}`, !ok);
+    const ok = aiItems.filter((it) => !it.characterExcluded&&it.suggested).length, todo = aiItems.filter((it) => !it.characterExcluded&&it.needsName).length;
+    const errors=aiItems.filter(it=>it.error);
+    aiStatus((ok ? `${ok} names available${todo ? ` · ${todo} need your name (listed first)` : ''}. Review before applying.` : 'No names came back.')+(errors.length?` ${errors.length} items failed: ${errors[0].error} Details remain in Request errors & retries.`:''), !ok||!!errors.length);
     if(libraryIssue)aiStatus($('#aiStatus').textContent+libraryIssue,true);
+  }
+
+  function wholeCharacter(it){return (it.kind||it.category)==='character'&&it.artworkRole!=='part'&&!window.DSFCharacters.isPart(it.suggested||it.existingName||it.name,it.assetName?.appearance.crop);}
+  function reviewCharacters(){
+    const whole=aiItems.filter(it=>!it.error&&wholeCharacter(it)&&it.suggested&&(it.confidence||0)>=.8);
+    const ids=new Set(whole.flatMap(it=>it.ids));
+    for(const it of aiItems){
+      it.characterExcluded=!it.error&&(!whole.includes(it)||it.characterAncestorIds?.some(id=>ids.has(id)));
+      if(it.characterExcluded)it.selected=false;
+      else if(!it.error&&it.existingName){it.suggested=it.existingName;it.assetName=it.existingAssetName||null;it.needsName=false;}
+    }
+    const found=aiItems.filter(it=>!it.characterExcluded&&!it.error),excluded=aiItems.filter(it=>it.characterExcluded).length;
+    $('#characterSummary').hidden=false;
+    $('#characterSummary').textContent=`${found.length} whole-character results · ${excluded} scenes, parts, uncertain groups or nested duplicates kept out. Existing names are preserved. Apply the reviewed characters, then build Assets in Step 7 to collect separate copies; source scenes remain intact. Flattened artwork cannot be separated into editable characters by this group search.`;
   }
 
   function contextLine(it, i) { return `#${i} · category: ${it.category} · current name: "${it.name}"${it.assetName ? ` · identity: ${it.assetName.identity} · appearance: ${JSON.stringify(it.assetName.appearance)}` : ''}${it.desc ? ` · geometry: ${it.desc}` : ''}${it.text ? ` · text: "${it.text.slice(0, 60)}"` : ''} · ${it.w}×${it.h}px${it.referenceMatches?.length ? ' · shape candidates (not confirmed identity): '+it.referenceMatches.map(m=>m.ref.referenceName+' shared vector parts='+m.shared+', overlap='+m.overlap.toFixed(2)+', palette='+m.color.toFixed(2)+', stroke='+m.stroke.toFixed(2)).join('; ') : ''}`; }
@@ -613,18 +922,59 @@ Return ONLY a JSON array, no prose, no code fence: [{"i":0,"name":"search","what
     return seg;
   }
 
-  async function postJson(url, headers, body, retry) {
-    const res = await fetch(url, { method: 'POST', headers: { 'content-type': 'application/json', ...headers }, body: JSON.stringify(body) });
-    if (res.status === 429 || res.status >= 500) {
-      if (retry > 0) { await new Promise((r) => setTimeout(r, 2500)); return postJson(url, headers, body, retry - 1); }
-      throw new Error(`API ${res.status}: rate limited or unavailable`);
-    }
-    if (!res.ok) {
-      let msg = `API ${res.status}`;
-      try { const j = await res.json(); msg = (j.error && j.error.message) || msg; } catch {}
-      throw new Error(msg);
-    }
-    return res.json();
+  function safeErrorText(value,secrets=[]) {
+    let text=String(value||'');
+    for(const secret of [...secrets,...Object.values(aiKeys||{}),$('#apiKey').value])if(typeof secret==='string'&&secret.length>5&&!/^https?:/.test(secret))text=text.split(secret).join('[redacted]');
+    return text.replace(/AIza[\w-]{20,}|sk-[\w-]{16,}/g,'[redacted]')
+      .replace(/((?:api[_-]?key|x-goog-api-key|authorization|access_token)\s*["']?\s*[:=]\s*["']?)(?:Bearer\s+)?[^\s"'&,}]+/gi,'$1[redacted]')
+      .replace(/data:image\/[^;]+;base64,[A-Za-z0-9+/=]+/g,'[image omitted]').slice(0,2400);
+  }
+  function requestSource(url){try{const host=new URL(url).hostname;return host==='generativelanguage.googleapis.com'?'Gemini':host==='api.anthropic.com'?'Anthropic':host==='localhost'||host==='127.0.0.1'?'Local server':host;}catch{return 'Server';}}
+  function retryDelay(value){
+    if(value==null||value==='')return 0;
+    const numeric=Number(value),seconds=Number.isFinite(numeric)?numeric:(Date.parse(value)-Date.now())/1000;
+    return Number.isFinite(seconds)&&seconds>0?Math.ceil(seconds):0;
+  }
+  async function readRequestError(res,url,secrets=[]) {
+    let payload=null,raw='';
+    try{if(typeof res.text==='function'){raw=await res.text();try{payload=JSON.parse(raw);}catch{}}else payload=await res.json();}catch{}
+    const error=payload?.error,detail=payload?.detail,info=error&&typeof error==='object'?error:detail&&typeof detail==='object'&&!Array.isArray(detail)?detail:{};
+    const message=typeof info.message==='string'?info.message:typeof detail==='string'?detail:typeof error==='string'?error:
+      Array.isArray(detail)?detail.map(d=>`${Array.isArray(d?.loc)?d.loc.join('.')+': ':''}${d?.msg||'Invalid request'}`).join('; '):typeof payload==='string'?payload:raw&&!/^\s*</.test(raw)?raw:'';
+    const upstream=Number(info.status||info.code),code=upstream>=400&&upstream<=599?upstream:res.status;
+    const label=info.source==='provider'&&info.provider?info.provider:requestSource(url);
+    const labels={400:'Invalid request',401:'Authentication failed',403:'Permission denied',404:'Not found',408:'Request timed out',409:'Conflict',422:'Invalid request data',429:'Rate limit or quota exceeded',500:'Internal error',502:'Upstream request failed',503:'Service unavailable',504:'Gateway timeout',529:'Service overloaded'};
+    const codeName=typeof info.status==='string'&&!/^\d+$/.test(info.status)?' · '+info.status:'';
+    const context=[info.model,info.phase].filter(v=>typeof v==='string').join(' · ');
+    const failed=new Error(safeErrorText(`${label} · HTTP ${res.status}${code!==res.status?' · upstream '+code:''}${codeName} · ${labels[code]||'Request failed'}${context?' · '+context:''}${message?'\n'+message:''}`,secrets));
+    const providerResponse=info.source==='provider'||['Gemini','Anthropic'].includes(requestSource(url));
+    failed.retryable=[408,429,500,502,503,504,529].includes(code)&&(typeof info.retryable==='boolean'?info.retryable:providerResponse||[408,429,503,504].includes(res.status));
+    failed.retryAfterSeconds=Math.max(retryDelay(res.headers?.get?.('retry-after')),retryDelay(info.retryAfterSeconds));
+    for(const d of Array.isArray(info.details)?info.details:[]){const delay=String(d?.retryDelay||'').match(/^(\d+(?:\.\d+)?)s$/);if(delay)failed.retryAfterSeconds=Math.max(failed.retryAfterSeconds,Math.ceil(+delay[1]));}
+    if(info.completedCalls>0){failed.retryable=false;failed.message+='\n'+info.completedCalls+' model calls already completed. Automatic replay is disabled.';}
+    if(failed.retryAfterSeconds)failed.message+='\nRetry after '+failed.retryAfterSeconds+' seconds.';
+    return failed;
+  }
+  async function postJson(url,headers,body,retry,attempt=0) {
+    const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),90000);
+    try{
+      let res;
+      try{res=await fetch(url,{method:'POST',headers:{'content-type':'application/json',...headers},body:JSON.stringify(body),signal:controller.signal});}
+      catch(e){if(controller.signal.aborted)throw e;throw Error(requestSource(url)+' · Connection failed: '+safeErrorText(e.message||e)+'. Check the server address and connection.');}
+      if(!res.ok){
+        const err=await readRequestError(res,url,Object.values(headers));
+        const delay=err.retryAfterSeconds||Math.ceil(5*Math.pow(2,attempt)+Math.random()*2);
+        if(retry>0&&err.retryable&&delay<=60){
+          clearTimeout(timer);
+          const msg=err.message+'\nRetrying in '+delay+' seconds (attempt '+(attempt+2)+').';
+          if(activeOperation)status(msg);if(activeOperation?.step===5)recordRequestError(msg);
+          await new Promise(r=>setTimeout(r,delay*1000));return postJson(url,headers,body,retry-1,attempt+1);
+        }
+        throw err;
+      }
+      return await res.json();
+    }catch(e){if(controller.signal.aborted)throw Error(requestSource(url)+' · No response within 90 seconds. Completion is unknown; check the server before retrying.');throw e;}
+    finally{clearTimeout(timer);}
   }
 
   async function callClaude(segments, key, model) {
@@ -646,7 +996,7 @@ Return ONLY a JSON array, no prose, no code fence: [{"i":0,"name":"search","what
   async function callProxy(batch, key, model, refs) {
     const [up, upModel] = (model === '__custom' ? $('#customModel').value.trim() : model).split(':');
     const body = {
-      provider: up || 'anthropic', model: upModel || null, api_key: null,
+      provider: up || 'gemini', model: upModel || null, api_key: null,
       excluded_reference_names: [...new Set(batch.flatMap(it=>excludedNames(it)))],
       use_cache: !(refs && refs.length) && !batch.some(it=>excludedNames(it).length),
       project: $('#project').value.trim() || 'default', critic: $('#p_critic').checked, learn: $('#p_learn').checked,
@@ -694,17 +1044,37 @@ Return ONLY a JSON array, no prose, no code fence: [{"i":0,"name":"search","what
     applyRows(batch, arr);enforceRejections(batch);
   }
 
-  // second look: low-confidence characters/illustrations/symbols get another pass with the confidently-named characters and logos as references
-  async function reconcileCharacters(key, model) {
-    const refs = aiItems.filter((it) => it.suggested && (it.referenceName || it.kind === 'character' || it.kind === 'logo') && (it.confidence || 0) >= 0.8).slice(0, 6);
-    const cands = aiItems.filter((it) => ['character', 'illustration', 'symbol', 'icon', 'abstract'].includes(it.kind || it.category) && (it.needsName || (it.confidence || 0) < 0.7) && !refs.includes(it));
+  // Choose evidence for this batch, retaining separate poses with the same name.
+  // Rejected pairs never enter a shared model context.
+  function referencesFor(batch,references,limit=6) {
+    const pool=[...new Set(references)].filter(ref=>ref.dataUrl&&!batch.includes(ref)&&!batch.some(it=>isRejected(it,ref)));
+    const rankings=batch.map(it=>pool.map(ref=>{
+      const match=it.features&&ref.features?window.DSFSimilarity.similarity(it.features,ref.features):null;
+      const kind=ref.kind||ref.category;
+      return {ref,score:(match?.candidate?2:0)+(match?.score||0)+(kind===(it.kind||it.category) ? 0.1 : 0)};
+    }).sort((a,b)=>b.score-a.score));
+    const selected=[];
+    for(let rank=0;rank<pool.length&&selected.length<limit;rank++)for(const list of rankings){
+      const ref=list[rank]?.ref;
+      if(ref&&!selected.includes(ref))selected.push(ref);
+      if(selected.length===limit)break;
+    }
+    return selected;
+  }
+
+  // Second look also uses saved examples, even when no named source is in this file.
+  async function reconcileCharacters(key, model, establishedReferences=[]) {
+    const refs = [...new Set([...establishedReferences,...aiItems.filter((it) => it.suggested && (it.referenceName || it.kind === 'character' || it.kind === 'logo') && (it.confidence || 0) >= 0.8)])].filter(it=>!window.DSFCharacters.isPart(it.referenceName||it.suggested,it.assetName?.appearance.crop));
+    const cands = aiItems.filter((it) => !it.error && !it.referenceName && !it.manualName && ['character', 'illustration', 'symbol', 'icon', 'abstract'].includes(it.kind || it.category) && (it.needsName || (it.confidence || 0) < 0.7) && !refs.includes(it));
     if (!refs.length || !cands.length) return 0;
     aiStatus(`Second look at ${cands.length} items using ${refs.length} reference character${refs.length === 1 ? '' : 's'}…`);
     let changed = 0;
     for (let i = 0; i < cands.length; i += 8) {
       const b = cands.slice(i, i + 8);
       const before = b.map((it) => it.suggested);
-      try { await aiName(b, key, model, refs); } catch (e) { continue; }
+      const selected=referencesFor(b,refs);
+      if(!selected.length)continue;
+      try { await aiName(b, key, model, selected); } catch (e) {const detail=safeErrorText(e.message||e);b.forEach(it=>it.error=detail);recordRequestError('Second comparison: '+detail);aiRunHadError=true;continue;}
       b.forEach((it, n) => { if (it.suggested && it.suggested !== before[n]) { changed++; it.source = 'reference'; } });
     }
     return changed;
@@ -714,7 +1084,7 @@ Return ONLY a JSON array, no prose, no code fence: [{"i":0,"name":"search","what
     const seen = new Map();
     for (const it of aiItems) {
       if (!it.suggested) continue;
-      if(it.referenceName||it.assetName) continue;
+      if(it.referenceName||it.assetName||it.characterSearch&&it.existingName||it.characterExcluded) continue;
       const k = `${it.kind || it.category}|${it.suggested}`; const n = (seen.get(k) || 0) + 1; seen.set(k, n);
       if (n > 1) it.suggested = `${it.suggested}-${n}`;
     }
@@ -849,7 +1219,8 @@ Return ONLY a JSON array, no prose, no code fence: [{"i":0,"name":"search","what
   $('#libraryRows').addEventListener('input',e=>{if(e.target.hasAttribute('data-ref-name')){e.target.closest('[data-ref-id]').querySelectorAll('[data-trait]').forEach(el=>el.value='');return;}if(!e.target.hasAttribute('data-trait'))return;const row=e.target.closest('[data-ref-id]'),v=readTraits(row);if(v)row.querySelector('[data-ref-name]').value=window.DSFAssetNames.assetName(v);});
 
   function renderAi() {
-    $('#aiRows').innerHTML = aiItems.map((it, i) => `<div class="ai-row" data-i="${i}" ${it.needsName ? 'style="background:var(--bg2);margin:0 -16px;padding:5px 16px"' : ''}>
+    aiReviewReady=true;
+    $('#aiRows').innerHTML = aiItems.map((it, i) => it.characterExcluded?'':`<div class="ai-row" data-i="${i}" ${it.needsName ? 'style="background:var(--bg2);margin:0 -16px;padding:5px 16px"' : ''}>
       <input type="checkbox" ${(it.selected !== undefined ? it.selected : it.suggested && (!it.referenceName || it.manualName)) ? 'checked' : ''} ${it.suggested || it.needsName ? '' : 'disabled'} />
       <img src="${it.dataUrl}" alt="" />
       <div>
@@ -861,40 +1232,66 @@ Return ONLY a JSON array, no prose, no code fence: [{"i":0,"name":"search","what
     </div>`).join('');
     $('#aiApply').hidden = false; $('#aiBuild').hidden = false; $('#aiAll').hidden = false;
     updateApplyCount();
-    $('#aiSec').scrollIntoView({ behavior: 'smooth', block: 'start' });
+    if(!workflowBusy)setStepState(5,'review','Review the proposed names. Applying selected names will update the original layers.');
+    if(currentStep!==5){referencesReviewed=true;$('#aiSec').hidden=false;showStep(5);}
   }
 
   let sheetReferenceContext=null;
-  $('#sheetSaveReference').onclick=()=>{if(!sheetCellId)return;sheetReferenceContext=libraryContext();setBusy(true,'Preparing approved reference…');send({type:'sheet_reference',cellId:sheetCellId,name:$('#sheetName').value,assetName:readTraits($('#sheetTraits'))});};
+  $('#sheetSaveReference').onclick=()=>{if(!sheetCellId)return;showStep(1);sheetReferenceContext=libraryContext();setBusy(true,'Preparing the selected item as an approved reference…');send({type:'sheet_reference',cellId:sheetCellId,name:$('#sheetName').value,assetName:readTraits($('#sheetTraits'))});};
   async function saveSheetReference(entry){
-    try{const ctx=sheetReferenceContext;if(!ctx)throw Error('Select the item again.');await libraryRequest(ctx,'','POST',entry);setBusy(false,`Saved ${entry.name} to ${ctx.project}.`);if(JSON.stringify(ctx)===JSON.stringify(libraryContext()))await loadLibraryReferences();}
-    catch(e){setBusy(false);$('#libraryStatus').textContent=e.message;}finally{sheetReferenceContext=null;}
+    try{const ctx=sheetReferenceContext;if(!ctx)throw Error('Select the item again.');await libraryRequest(ctx,'','POST',entry);finishOperation('saved',`Saved ${entry.name} to ${ctx.project}.`,1);}
+    catch(e){finishOperation('error','Reference was not saved: '+e.message,1);}finally{sheetReferenceContext=null;}
   }
-  let logoInspection=null,logoSaveContext=null;
-  $('#logoInspect').onclick=()=>{$('#logoInspect').disabled=true;$('#logoFields').hidden=true;logoInspection=null;$('#logoStatus').textContent='Inspecting original artwork…';send({type:'logo_inspect'});};
+  let logoInspection=null,logoSaveContext=null,logoApprovalSaved=false,logoLibrarySaved=false;
+  function logoCanSave(){return !!logoInspection&&!!$('#logoName').value.trim()&&!logoInspection.regions.some(r=>r.role==='unknown')&&logoInspection.regions.some(r=>r.role==='symbol'||r.role==='signature');}
+  function updateLogoChecklist(){
+    if(!logoInspection)return;
+    const assigned=logoInspection.regions.filter(r=>r.role!=='unknown').length,total=logoInspection.regions.length;
+    $('#logoChecklist').innerHTML='<li>Inspection: complete</li><li>Region roles: '+assigned+' of '+total+' assigned</li><li>Source approval: '+(logoApprovalSaved?'saved':'not saved in this review')+'</li><li>Library reference: '+(logoLibrarySaved?'saved':logoApprovalSaved?'pending':'not saved in this review')+'</li>';
+  }
+  function syncLogoReview(){
+    if(!logoInspection)return;
+    updateLogoChecklist();$('#logoSave').disabled=workflowBusy||!logoCanSave();
+    if(workflowBusy)return;
+    const unknown=logoInspection.regions.filter(r=>r.role==='unknown');
+    const detail=unknown.length?unknown.length+' of '+logoInspection.regions.length+' regions need a role: '+unknown.slice(0,3).map(r=>r.name).join(', ')+(unknown.length>3?' and '+(unknown.length-3)+' more':'')+'. Assign every region: Symbol / logotype for artwork, Text / signature for lettering, or Ignore.':!$('#logoName').value.trim()?'Enter the approved logo name before saving.':!logoCanSave()?'Choose at least one Symbol / logotype or Text / signature region.':'All regions have roles. Check them, then press Save composition & approved logo reference.';
+    $('#logoStatus').textContent=detail;setStepState(2,'review',detail);status(detail);
+  }
+  $('#logoInspect').onclick=()=>{showStep(2);logoApprovalSaved=false;logoLibrarySaved=false;setBusy(true,'Reading selected logo regions and exporting a preview…');$('#logoInspect').disabled=true;$('#logoFields').hidden=true;logoInspection=null;$('#logoStatus').textContent='Inspecting original artwork…';send({type:'logo_inspect'});};
   function logoOverlays(){
     if(!logoInspection)return;
     const host=$('#logoPreview');host.querySelectorAll('[data-logo-box]').forEach(n=>n.remove());
     for(const r of logoInspection.regions){const color=r.role==='signature'?'#8a38ae':r.role==='symbol'?'#087caa':'#666';const box=document.createElement('div');box.dataset.logoBox=r.id;Object.assign(box.style,{position:'absolute',left:(r.x*100)+'%',top:(r.y*100)+'%',width:(r.width*100)+'%',height:(r.height*100)+'%',border:'2px solid '+color,boxSizing:'border-box',pointerEvents:'none'});box.title=r.role;const label=document.createElement('span');label.textContent=(logoInspection.regions.indexOf(r)+1)+' '+r.role;Object.assign(label.style,{background:color,color:'white',fontSize:'10px',position:'absolute',top:'0',left:'0'});box.append(label);host.append(box);}
   }
   function showLogoComposition(data){
-    logoInspection=data;$('#logoInspect').disabled=false;$('#logoFields').hidden=false;$('#logoName').value=data.name||'';
+    logoInspection=data;logoApprovalSaved=false;logoLibrarySaved=false;$('#logoInspect').disabled=false;$('#logoFields').hidden=false;$('#logoName').value=data.name||'';
     $('#logoPreview').innerHTML='<img alt="Selected artwork with proposed composition regions" src="data:image/png;base64,'+esc(data.image)+'" style="width:100%;display:block" />';
     $('#logoRegions').innerHTML=data.regions.map((r,i)=>`<div data-logo-region="${esc(r.id)}" style="border-top:1px solid var(--line);padding:8px 0"><div>${i+1}. ${esc(r.name)}</div><select data-logo-role aria-label="Region ${i+1} role">${['unknown','symbol','signature','ignore'].map(v=>`<option ${r.role===v?'selected':''} value="${v}">${v==='symbol'?'Symbol / logotype':v==='signature'?'Text / signature':v}</option>`).join('')}</select><input data-logo-text aria-label="Region ${i+1} lettering" placeholder="Transcribe outlined lettering if needed" value="${esc(r.text)}" /></div>`).join('');
-    $('#logoStatus').textContent='Proposed regions only. Assign every region; use Ignore for backgrounds. Purple = signature, blue = symbol. Boxes are axis-aligned, including rotated artwork.';logoOverlays();
+    $('#logoStatus').textContent='Proposed regions only. Assign every region; use Ignore for backgrounds. Purple = signature, blue = symbol. Boxes are axis-aligned, including rotated artwork.';logoOverlays();syncLogoReview();
   }
-  $('#logoRegions').onchange=e=>{const row=e.target.closest('[data-logo-region]');if(!row||!logoInspection)return;const r=logoInspection.regions.find(r=>r.id===row.dataset.logoRegion);r.role=row.querySelector('[data-logo-role]').value;r.text=row.querySelector('[data-logo-text]').value;logoOverlays();};
-  $('#logoSave').onclick=()=>{if(!logoInspection)return;$('#logoRegions').querySelectorAll('[data-logo-region]').forEach(row=>{const r=logoInspection.regions.find(r=>r.id===row.dataset.logoRegion);r.role=row.querySelector('[data-logo-role]').value;r.text=row.querySelector('[data-logo-text]').value;});if(logoInspection.regions.some(r=>r.role==='unknown')){$('#logoStatus').textContent='Assign every region a role or Ignore first.';return;}logoSaveContext=libraryContext();$('#logoSave').disabled=true;send({type:'logo_save',...logoInspection,name:$('#logoName').value});};
-  async function persistLogoReference(entry){try{const ctx=logoSaveContext;if(!ctx)throw Error('Inspect the logo again.');await libraryRequest(ctx,'','POST',entry);$('#logoStatus').textContent='Composition saved; approved logo reference saved in '+ctx.project+'.';if(JSON.stringify(ctx)===JSON.stringify(libraryContext()))await loadLibraryReferences();}catch(e){$('#logoStatus').textContent='Composition saved on source, but library save failed: '+e.message+' Retry Save to persist the reference.';}finally{$('#logoSave').disabled=false;logoSaveContext=null;}}
+  $('#logoRegions').onchange=e=>{const row=e.target.closest('[data-logo-region]');if(!row||!logoInspection)return;const r=logoInspection.regions.find(r=>r.id===row.dataset.logoRegion);r.role=row.querySelector('[data-logo-role]').value;r.text=row.querySelector('[data-logo-text]').value;logoApprovalSaved=false;logoLibrarySaved=false;logoOverlays();syncLogoReview();};
+  $('#logoName').oninput=()=>{logoApprovalSaved=false;logoLibrarySaved=false;syncLogoReview();};
+  $('#logoSave').onclick=()=>{
+    if(!logoInspection||workflowBusy)return;
+    $('#logoRegions').querySelectorAll('[data-logo-region]').forEach(row=>{const r=logoInspection.regions.find(r=>r.id===row.dataset.logoRegion);r.role=row.querySelector('[data-logo-role]').value;r.text=row.querySelector('[data-logo-text]').value;});
+    if(!logoCanSave()){syncLogoReview();return;}
+    logoSaveContext=libraryContext();setBusy(true,'Rechecking the selected artwork and saving source logo approval…',2);$('#logoSave').disabled=true;$('#logoStatus').textContent='Rechecking the selected artwork and saving source logo approval…';
+    send({type:'logo_save',...logoInspection,name:$('#logoName').value});
+  };
+  async function persistLogoReference(entry){
+    try{const ctx=logoSaveContext;if(!ctx)throw Error('Inspect the logo again.');await libraryRequest(ctx,'','POST',entry);logoLibrarySaved=true;const detail='Logo approved on source; reference saved in '+ctx.project+'. Continue to Step 3. Build Assets in Step 7 to update Logos.';$('#logoStatus').textContent=detail;finishOperation('saved',detail,2);}
+    catch(e){const detail='Composition saved on source, but library save failed: '+e.message+' Retry Save to persist the reference.';$('#logoStatus').textContent=detail;finishOperation('partial',detail,2);}
+    finally{$('#logoSave').disabled=!logoCanSave();logoSaveContext=null;updateLogoChecklist();}
+  }
   function compositionContext(c){return c?'Reviewed logo composition: '+c.arrangement+'; regions: '+c.regions.filter(r=>r.role!=='ignore').map(r=>r.role+(r.text?' lettering '+r.text:'')+' bounds '+[r.x,r.y,r.width,r.height].map(v=>Number(v).toFixed(2)).join(',')).join('; '):'';}
   function libraryContext(){return {server:$('#libraryServer').value.trim().replace(/\/+$/,''),project:$('#libraryProject').value.trim()||'default'};}
   async function libraryRequest(ctx,path='',method='GET',body){
     const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),15000);
     try{
       const r=await fetch(`${ctx.server}/library/${encodeURIComponent(ctx.project)}${path}`,{method,headers:{'content-type':'application/json'},body:body?JSON.stringify(body):undefined,signal:controller.signal});
-      if(!r.ok)throw Error(r.status===404?'Restart the updated server to enable the library.':`Library request failed (${r.status})`);
+      if(!r.ok)throw await readRequestError(r,ctx.server);
       return await r.json();
-    }finally{clearTimeout(timer);}
+    }catch(e){if(controller.signal.aborted)throw Error('Library server did not respond within 15 seconds. Check the server and retry.');throw e;}finally{clearTimeout(timer);}
   }
   function showLibrary(rows){
     $('#libraryRows').innerHTML=rows.map(r=>`<div class="row" data-ref-id="${esc(r.id)}" style="padding:8px 0;border-top:1px solid var(--line)"><img src="data:image/png;base64,${esc(r.image)}" alt="${esc(r.name)}" style="width:56px;height:56px;object-fit:contain;background:#bbb"/><div style="flex:1;min-width:0"><input data-ref-name value="${esc(r.name)}" aria-label="Reference name" style="width:100%"/><div class="hint">${esc(r.kind)}${r.composition?' · '+esc(r.composition.arrangement)+' · '+r.composition.regions.length+' reviewed regions':''}</div>${traitFields(r.assetName)}<button class="btn small" data-ref-rename>Save changes</button><button class="btn small" data-ref-delete>Delete</button></div></div>`).join('');
@@ -905,7 +1302,7 @@ Return ONLY a JSON array, no prose, no code fence: [{"i":0,"name":"search","what
     if(JSON.stringify(ctx)===JSON.stringify(libraryContext())){showLibrary(rows);displayedLibraryContext=ctx;$('#libraryStatus').textContent=`${rows.length} approved references in ${ctx.project}.`;}
     return rows.map(r=>({libraryId:r.id,referenceName:r.name,suggested:r.name,category:r.kind,kind:r.kind,what:[r.what,compositionContext(r.composition)].filter(Boolean).join(' · '),composition:r.composition,features:r.features,assetName:r.assetName,dataUrl:'data:image/png;base64,'+r.image,confidence:1,source:'saved reference'}));
   }
-  $('#libraryLoad').onclick=async()=>{try{await loadLibraryReferences();}catch(e){$('#libraryStatus').textContent=e.message;}};
+  $('#libraryLoad').onclick=async()=>{showStep(3);setBusy(true,'Loading approved project references…');try{await loadLibraryReferences();finishOperation('completed',$('#libraryStatus').textContent,3);}catch(e){$('#libraryStatus').textContent=e.message;finishOperation('error',e.message,3);}};
   $('#libraryProject').onchange=()=>{$('#project').value=$('#libraryProject').value;$('#libraryRows').replaceChildren();displayedLibraryContext=null;};
   $('#libraryServer').onchange=()=>{$('#proxyUrl').value=$('#libraryServer').value;$('#libraryRows').replaceChildren();displayedLibraryContext=null;};
   $('#project').addEventListener('change',()=>{$('#libraryProject').value=$('#project').value;$('#libraryRows').replaceChildren();displayedLibraryContext=null;});
@@ -913,19 +1310,24 @@ Return ONLY a JSON array, no prose, no code fence: [{"i":0,"name":"search","what
   $('#librarySave').onclick=async()=>{
     const entries=[];
     document.querySelectorAll('#aiRows .ai-row').forEach(row=>{if(!row.querySelector('input[type=checkbox]').checked)return;const it=aiItems[+row.dataset.i],name=row.querySelector('input[type=text]').value.trim();if(name&&it.dataUrl)entries.push({name,kind:it.kind||it.category,what:it.what||'',image:it.dataUrl.split(',')[1],features:it.features,assetName:it.assetName});});
-    if(!entries.length){$('#libraryStatus').textContent='Select named items in the identification review first.';return;}
-    const ctx=libraryContext();let saved=0;$('#librarySave').disabled=true;
-    try{for(const entry of entries){await libraryRequest(ctx,'','POST',entry);saved++;}$('#libraryStatus').textContent=`Saved ${saved} approved references in ${ctx.project}.`;if(JSON.stringify(ctx)===JSON.stringify(libraryContext()))await loadLibraryReferences();}
-    catch(e){$('#libraryStatus').textContent=`Saved ${saved}/${entries.length}. ${e.message}`;}finally{$('#librarySave').disabled=false;}
+    if(!entries.length){$('#libraryStatus').textContent='Select named items in Step 5 first, then return here to save them.';setStepState(3,'review',$('#libraryStatus').textContent);return;}
+    const ctx=libraryContext();let saved=0;showStep(3);setBusy(true,'Saving '+entries.length+' approved references…');$('#librarySave').disabled=true;
+    try{for(const entry of entries){await libraryRequest(ctx,'','POST',entry);saved++;status('Saved reference '+saved+' of '+entries.length+'…');}$('#libraryStatus').textContent=`Saved ${saved} approved references in ${ctx.project}.`;finishOperation('saved',$('#libraryStatus').textContent,3);}
+    catch(e){$('#libraryStatus').textContent=`Saved ${saved}/${entries.length}. ${e.message}`;finishOperation(saved?'partial':'error',$('#libraryStatus').textContent,3);}finally{$('#librarySave').disabled=false;}
   };
   $('#libraryRows').onclick=async e=>{
     const row=e.target.closest('[data-ref-id]'),ctx=displayedLibraryContext;if(!row||!ctx)return;
     const rename=e.target.hasAttribute('data-ref-rename'),remove=e.target.hasAttribute('data-ref-delete');if(!rename&&!remove)return;
     const name=row.querySelector('[data-ref-name]').value.trim();if(rename&&!name)return;
-    row.inert=true;
-    try{await libraryRequest(ctx,'/'+encodeURIComponent(row.dataset.refId),remove?'DELETE':'PATCH',rename?{name,assetName:readTraits(row)}:undefined);if(JSON.stringify(ctx)===JSON.stringify(libraryContext()))await loadLibraryReferences();}
-    catch(err){$('#libraryStatus').textContent=err.message;row.inert=false;}
+    row.inert=true;setBusy(true,remove?'Deleting this reference…':'Saving reference changes…',3);
+    try{await libraryRequest(ctx,'/'+encodeURIComponent(row.dataset.refId),remove?'DELETE':'PATCH',rename?{name,assetName:readTraits(row)}:undefined);if(JSON.stringify(ctx)===JSON.stringify(libraryContext()))await loadLibraryReferences();finishOperation('saved',remove?'Reference deleted from the library.':'Reference changes saved.',3);}
+    catch(err){$('#libraryStatus').textContent=err.message;row.inert=false;finishOperation('error',err.message,3);}
   };
+
+  setStepState(1,'waiting','Select a preview or caption in a generated Assets or Icons sheet. Or continue to Step 2.','Waiting for selection');
+  setStepState(2,'waiting','Select one original logo group in Figma and press Inspect selected logo.','Waiting for selection');
+  setStepState(3,'ready','Load your project references, or continue to Step 4.');
+  resetWorkflow();showStep(1,false);
 
   // ---------- tiny store-only zip writer ----------
   const CRC = (() => { const t = new Uint32Array(256); for (let n = 0; n < 256; n++) { let c = n; for (let k = 0; k < 8; k++) c = c & 1 ? 0xEDB88320 ^ (c >>> 1) : c >>> 1; t[n] = c >>> 0; } return t; })();
@@ -970,6 +1372,14 @@ Return ONLY a JSON array, no prose, no code fence: [{"i":0,"name":"search","what
     const x = rejectionKey(a), y = rejectionKey(b);
     if (!x || !y) return false;
     return rules.some((r) => r.a === x && r.b === y || r.a === y && r.b === x);
+  }
+
+  // src/character-parts.ts
+  function characterPart(name = "", crop = "") {
+    if (crop && !/^(whole|full|full-body|uncropped)$/i.test(crop)) return true;
+    const normalized = name.toLowerCase().replace(/[_/\s]+/g, "-").replace(/-\d+$/, "");
+    if (/(?:^|-)(?:full|whole)-body$/.test(normalized)) return false;
+    return /(?:^|-)(?:body-only|body|wing|wings|beak|eye|eyes|eyes-only|face-only|head-only|foot|feet|hand|hands|tail|arm|arms|leg|legs)(?:-only)?$/.test(normalized);
   }
 
   // src/asset-names.ts
@@ -1125,6 +1535,7 @@ Return ONLY a JSON array, no prose, no code fence: [{"i":0,"name":"search","what
   }
 
   // ui/assets.js
+  window.DSFCharacters = { isPart: characterPart };
   window.DSFRejections = { key: rejectionKey, pair: rejectedPair };
   window.DSFAssetNames = { normalizeAssetName, assetName, fields: APPEARANCE_FIELDS };
   window.DSFSimilarity = { similarity, variationName };
@@ -1150,14 +1561,7 @@ Return ONLY a JSON array, no prose, no code fence: [{"i":0,"name":"search","what
     const signal = controller.signal, timeout = setTimeout(() => controller?.abort(), 12e4);
     try {
       const r = await fetch(url, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body), signal });
-      if (!r.ok) {
-        let detail = "";
-        try {
-          detail = JSON.stringify((await r.json()).detail);
-        } catch {
-        }
-        throw new Error(`Server ${r.status}: ${detail}`);
-      }
+      if (!r.ok) throw await readRequestError(r, url);
       return await r.json();
     } finally {
       clearTimeout(timeout);
@@ -1170,11 +1574,12 @@ Return ONLY a JSON array, no prose, no code fence: [{"i":0,"name":"search","what
     controller?.abort();
     resolving = false;
     $("#assetResolve").disabled = false;
-    setBusy(false);
+    finishOperation("stopped", "Canonical resolution stopped. No metadata applied.", 6);
     message("Canonical resolution stopped. No metadata applied.");
   });
   var message = (s) => {
     $("#assetStatus").textContent = s;
+    if (activeOperation?.step === 6) status(s);
   };
   function render() {
     $("#assetApply").disabled = !map || !map.assets.some((f) => f.status === "approved" && f.variants.length);
@@ -1275,7 +1680,7 @@ Return ONLY a JSON array, no prose, no code fence: [{"i":0,"name":"search","what
     const useModel = $("#assetModel").checked;
     const raw = modelId() === "__custom" ? $("#customModel").value.trim() : modelId();
     const [up, upModel] = provider() === "proxy" ? raw.split(":") : [provider(), raw];
-    return { project: $("#assetProject").value.trim() || "default", server: $("#assetServer").value.trim().replace(/\/+$/, ""), useModel, provider: up || "anthropic", model: upModel || null, api_key: provider() === "proxy" ? null : $("#apiKey").value.trim() || null, maxModelCalls: 8 };
+    return { project: $("#assetProject").value.trim() || "default", server: $("#assetServer").value.trim().replace(/\/+$/, ""), useModel, provider: up || "gemini", model: upModel || null, api_key: provider() === "proxy" ? null : $("#apiKey").value.trim() || null, maxModelCalls: 8 };
   }
   $("#assetResolve").onclick = () => {
     if (resolving || aiBusy || externalBusy) return;
@@ -1293,13 +1698,14 @@ Return ONLY a JSON array, no prose, no code fence: [{"i":0,"name":"search","what
     render();
     $("#assetSave").hidden = true;
     $("#assetResolve").disabled = true;
-    setBusy(true, "Extracting canonical features\u2026");
+    showStep(6);
+    setBusy(true, "Extracting normalized geometry and appearance features\u2026", 6);
     const semantic = aiItems.filter((it) => it.suggested).map((it) => ({ ids: it.ids, name: it.suggested, kind: it.kind === "abstract" ? it.category : it.kind || it.category, description: it.what || "" }));
     send({ type: "assets_prepare", project: context.project, semantic });
   };
   $("#assetApply").onclick = () => {
     if (!map || resolving || externalBusy) return;
-    setBusy(true, "Applying approved canonical metadata\u2026");
+    setBusy(true, "Applying approved canonical metadata\u2026", 6);
     send({ type: "assets_apply", map, project: context.project });
   };
   $("#assetExport").onclick = () => {
@@ -1308,14 +1714,17 @@ Return ONLY a JSON array, no prose, no code fence: [{"i":0,"name":"search","what
   async function saveReferences() {
     if (!pendingSave) return;
     const request = pendingSave;
+    setBusy(true, "Saving approved families to the project library\u2026", 6);
     try {
       await postJson(`${request.server}/assets/approve/${encodeURIComponent(request.project)}`, {}, request.body, 0);
       if (pendingSave !== request) return;
       pendingSave = null;
       $("#assetSave").hidden = true;
+      finishOperation("saved", `Applied ${request.count} nodes and saved approved project references.`, 6);
       message(`Applied ${request.count} nodes and saved approved project references.`);
     } catch (e) {
       $("#assetSave").hidden = false;
+      finishOperation("partial", `Node metadata applied; project references were not saved: ${e.message}. Use Retry saving references.`, 6);
       message(`Node metadata applied; project references were not saved: ${e.message}. Use Retry saving references.`);
     }
   }
@@ -1367,13 +1776,13 @@ Return ONLY a JSON array, no prose, no code fence: [{"i":0,"name":"search","what
         if (epoch === generation) {
           resolving = false;
           $("#assetResolve").disabled = false;
-          setBusy(false, map ? "Canonical resolution ready for review." : "Canonical resolution finished; see status above.");
+          finishOperation(map ? "review" : "error", $("#assetStatus").textContent, 6);
         }
       }
     }
     if (m.type === "assets_applied") {
       map = m.map;
-      setBusy(false, `Applied canonical metadata to ${m.count} nodes.`);
+      status(`Applied canonical metadata to ${m.count} nodes. Saving project references\u2026`);
       render();
       pendingSave = { server: context.server, project: m.project, count: m.count, body: { documentId: map.documentId, families: map.assets.filter((f) => f.status === "approved" && f.variants.length), rejected } };
       await saveReferences();

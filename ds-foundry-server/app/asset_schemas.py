@@ -95,7 +95,7 @@ class ResolveRequest(Model):
     documentId: str = Field(min_length=1, max_length=200)
     items: list[AssetItem] = Field(max_length=10000)
     useModel: bool = False
-    provider: Provider = 'anthropic'
+    provider: Provider = 'gemini'
     model: str | None = None
     api_key: str | None = None
     maxModelCalls: int = Field(8, ge=0, le=30)

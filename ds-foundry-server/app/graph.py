@@ -11,6 +11,7 @@ from langgraph.graph import END, StateGraph
 from .glossary import Cache, Glossary, Refs, _slug
 from .prompts import CRITIC_SYSTEM, NAMER_SYSTEM, glossary_block
 from .schemas import KINDS, Item, NameResult, Proposal, Reference, Usage, Verdict
+from .character_parts import character_part
 
 GENERIC = {"icon", "image", "frame", "group", "vector", "rectangle", "shape", "component", "layer", "screen", "card", "element", "item", "picture", "graphic", "button", "text"}
 MAX_ROUNDS = 2
@@ -84,6 +85,7 @@ def _parse_proposals(rows: list[dict[str, Any]], pending: list[int]) -> dict[int
         if kind not in KINDS:
             kind = ""
         name = _clean_name(str(row.get("name", "") or ""))
+        if kind == 'character' and character_part(name): kind = 'symbol'
         conf = float(row.get("confidence", 0.7) or 0.7)
         if kind == "abstract":
             name, conf = "", min(conf, 0.3)
@@ -115,7 +117,7 @@ def build_graph(namer: BaseChatModel, critic: Optional[BaseChatModel], glossary:
         seen: set[str] = set()
         merged: list[Reference] = []
         for r in list(state.get("references") or []) + [Reference(**{k: v for k, v in row.items() if k in ("name", "what", "kind", "image")}) for row in refs.all()]:
-            if r.name in seen:
+            if r.name in seen or r.kind == 'character' and character_part(r.name):
                 continue
             seen.add(r.name)
             merged.append(r)
@@ -329,7 +331,7 @@ def build_graph(namer: BaseChatModel, critic: Optional[BaseChatModel], glossary:
             cache.put(it.key, {"name": r.name, "what": r.what, "kind": r.kind, "confidence": r.confidence})
             if state.get("learn", True):
                 glossary.learn(it.category, r.name, r.what)
-                if r.kind in REF_KINDS and r.confidence >= 0.8:
+                if r.kind in REF_KINDS and r.confidence >= 0.8 and not (r.kind == 'character' and character_part(r.name)):
                     refs.add(r.name, r.what, r.kind, it.image)
         cache.save()
         if state.get("learn", True):

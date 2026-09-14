@@ -59,6 +59,7 @@ def test_proxy_excludes_rejected_reference_names_and_bypasses_cache(monkeypatch)
     from app.glossary import Refs
     from app.schemas import Usage
     refs=Refs('brand');refs.add('ollie','mascot','character',PNG);refs.save()
+    monkeypatch.setenv('GOOGLE_API_KEY','test-only')
     monkeypatch.setenv('ANTHROPIC_API_KEY','test-only')
     monkeypatch.setattr(main,'get_chat_model',lambda *a:object())
     def fake_run(*args):

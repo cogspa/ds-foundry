@@ -5,16 +5,18 @@ from typing import Optional
 
 from langchain_core.language_models import BaseChatModel
 
+DEFAULT_PROVIDER = os.environ.get("DSF_DEFAULT_PROVIDER", "gemini")
+
 DEFAULT_MODELS = {
-    "anthropic": os.environ.get("DSF_ANTHROPIC_MODEL", "claude-sonnet-5"),
     "gemini": os.environ.get("DSF_GEMINI_MODEL", "gemini-3.7-flash"),
+    "anthropic": os.environ.get("DSF_ANTHROPIC_MODEL", "claude-sonnet-5"),
     "ollama": os.environ.get("DSF_OLLAMA_MODEL", "llama3.2-vision"),
 }
 
 # a cheaper text-only model for the critic pass, per provider (falls back to the namer model)
 CRITIC_MODELS = {
-    "anthropic": os.environ.get("DSF_ANTHROPIC_CRITIC", "claude-haiku-4-5"),
     "gemini": os.environ.get("DSF_GEMINI_CRITIC", "gemini-3.5-flash-lite"),
+    "anthropic": os.environ.get("DSF_ANTHROPIC_CRITIC", "claude-haiku-4-5"),
     "ollama": os.environ.get("DSF_OLLAMA_CRITIC", ""),
 }
 

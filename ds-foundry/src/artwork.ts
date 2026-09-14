@@ -1,5 +1,6 @@
 import {Category} from './types';
 import {readAssetName} from './asset-names';
+import {characterLabel,characterPart} from './character-parts';
 const ART=new Set<Category>(['icon','logo','character','illustration','symbol']);
 /** Respect grouped artwork, but do not swallow galleries of separate drawings. */
 export function artworkBoundary(node:SceneNode,category:Category):boolean {
@@ -19,6 +20,7 @@ export function artworkBoundary(node:SceneNode,category:Category):boolean {
 }
 export function artworkRole(node:SceneNode):{artworkRole?:'whole'|'part';partOf?:string} {
   const data=readAssetName(node);
-  if(data?.appearance.crop)return {artworkRole:'part',partOf:data.identity};
+  const name=node.getPluginData('dsf.semanticName')||data?.identity||node.getPluginData('dsf.originalName')||node.name;
+  if(characterPart('',data?.appearance.crop) || ((node.getPluginData('dsf.category')==='character'||characterLabel(name))&&characterPart(name)))return {artworkRole:'part',partOf:data?.identity||name};
   return {artworkRole:'whole',partOf:undefined};
 }

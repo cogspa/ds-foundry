@@ -1,3 +1,4 @@
+import {approveLogo} from './logo-approval';
 import {selectedSheetCell} from './sheet-identify';
 import {hasGeneratedAncestor} from './contact-sheet';
 import {shapeFeatures} from './similarity';
@@ -53,6 +54,9 @@ export async function saveLogo(msg:any){
  const composition={version:1 as const,arrangement:logoArrangement(regions),regions};
  const n=await source();if(n.id!==fresh.nodeId)throw Error('Selection changed. Inspect again.');
  const features=shapeFeatures(n);
+ approveLogo(n,name);
+ n.setPluginData('dsf.category','logo');
+ n.setPluginData('dsf.semanticName',name);
  n.setPluginData('dsf.logoComposition',JSON.stringify({...composition,snapshot:fresh.snapshot}));
  return {name,kind:'logo',what:'Human-reviewed logo composition: '+composition.arrangement,image:fresh.image,features,composition};
 }

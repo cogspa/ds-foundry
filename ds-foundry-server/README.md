@@ -1,4 +1,4 @@
-# DS Foundry naming server 0.3.0
+# DS Foundry naming server 0.3.2
 
 A small FastAPI + LangGraph service that the DS Foundry Figma plugin (v1.3.0+) can use instead of calling Claude or Gemini directly. It turns "name this thumbnail" into a pipeline:
 
@@ -25,6 +25,18 @@ cp .env.example .env     # add ANTHROPIC_API_KEY and/or GOOGLE_API_KEY
 ```
 
 Then in the plugin: **AI naming → Provider: Proxy**, server `http://localhost:8000`, pick an upstream (Claude / Gemini / Ollama, server default or a specific model), set a **Project** name (this is the glossary and cache namespace), and Suggest names as usual. Each row shows where its name came from — `model`, `critic`, `glossary` or `cache` — and the confidence.
+
+## Whole-character recognition (0.3.2)
+
+The naming prompt distinguishes one complete figure from a multi-character scene or detached body/wing/face part. DS Foundry 1.6.9 can send isolated nested groups for this focused review while preserving established names. Legacy body/wing references cannot seed whole-character recognition; a model response that calls a named fragment a character is corrected to symbol. This remains visual classification of supplied groups, not raster segmentation. Recognition is tested offline; real Figma group extraction and preview placement are verified separately without billable model calls.
+
+## Error diagnostics (0.3.1)
+
+`POST /name` preserves known provider HTTP status codes instead of flattening every failure to 502. Error responses contain a backward-compatible `detail` string plus `error.message`, `source`, `provider`, `model`, `phase`, `status`, `retryable` and `completedCalls` where applicable. Retry hints appear in `retryAfterSeconds` and the exposed `Retry-After` header. Keys from the environment/request and credential-shaped text are redacted.
+
+Model configuration and local storage/runtime failures are identified as server errors. Unknown SDK failures use 502 with no invented upstream status. After any successful model invocation in the naming pipeline, an ensuing failure disables automatic whole-request replay to avoid repeating completed calls. This is diagnostic metadata, not billing usage. Asset-family comparison errors are returned as visible warnings/evidence while keeping unconfirmed candidates separate.
+
+DS Foundry plugin **1.6.7** displays these details and keeps naming errors visible after a partial run. Restart a server launched without `--reload`; `./run.sh` starts Uvicorn with file watching.
 
 ## Endpoints
 
